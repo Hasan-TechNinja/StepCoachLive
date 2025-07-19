@@ -157,12 +157,31 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source='user.first_name', required=False, allow_blank=True)
+    last_name = serializers.CharField(source='user.last_name', required=False, allow_blank=True)
+    email = serializers.EmailField(
+        source='user.email', 
+        read_only=True, 
+        validators=[UniqueValidator(queryset=User.objects.all(), message="This email is already in use.")]
+    )
+
     class Meta:
         model = Profile
-        fields = ('bio', 'image')
+        fields = ('bio', 'image', 'first_name', 'last_name', 'email')
 
     def update(self, instance, validated_data):
+        # Extract the user data to update first_name, last_name, and email
+        user_data = validated_data.pop('user', {})
+        
+        # Update the profile
         instance.bio = validated_data.get('bio', instance.bio)
         instance.image = validated_data.get('image', instance.image)
-        instance.save()
+        
+        # Update user fields if provided
+        user = instance.user
+        user.first_name = user_data.get('first_name', user.first_name)
+        user.last_name = user_data.get('last_name', user.last_name)
+        user.save()  # Save the user fields
+        
+        instance.save()  # Save the profile
         return instance

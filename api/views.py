@@ -107,3 +107,24 @@ class PasswordResetConfirmView(APIView):
             return Response({'detail': 'Password has been reset.'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
+
+class ProfileView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get the current user's profile."""
+        user = request.user
+        profile = ProfileSerializer(user.profile).data 
+        return Response(profile, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        """Update the current user's profile."""
+        user = request.user
+        serializer = ProfileSerializer(user.profile, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
