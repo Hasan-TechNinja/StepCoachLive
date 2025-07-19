@@ -11,8 +11,17 @@ class EmailVerification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def is_expired(self):
-        return timezone.now() > self.created_at + timedelta(minutes=10)
+        return timezone.now() > self.created_at + timedelta(minutes=2)
    
+class PasswordResetCode(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(minutes=2)
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # name = models.CharField(max_length=100, blank=True)
@@ -36,12 +45,12 @@ class Report(models.Model):
     last_updated = models.DateField(auto_now=True)'''
 
 
-class SupportContact(models.Model):
+'''class SupportContact(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     email = models.EmailField()
     phone_primary = models.CharField(max_length=20)
     phone_secondary = models.CharField(max_length=20, blank=True)
-
+'''
 
 class Addiction(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
