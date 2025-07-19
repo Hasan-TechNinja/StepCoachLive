@@ -60,7 +60,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             is_active=False
         )
 
-        code = str(random.randint(100000, 999999))
+        code = str(random.randint(1000, 9999))
         EmailVerification.objects.create(user=user, code=code)
 
         send_mail(
