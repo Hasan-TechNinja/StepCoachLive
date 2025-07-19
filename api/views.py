@@ -4,8 +4,8 @@ from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from api.serializers import RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer
-from main.models import EmailVerification  # Assuming you have an EmailVerification model defined
+from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer
+from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData
 from django.contrib.auth.models import User
 from django.utils import timezone 
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -107,19 +107,17 @@ class PasswordResetConfirmView(APIView):
             return Response({'detail': 'Password has been reset.'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-
-
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    # GET: Retrieve the user's profile
     def get(self, request):
-        """Get the current user's profile."""
         user = request.user
-        profile = ProfileSerializer(user.profile).data 
+        profile = ProfileSerializer(user.profile).data
         return Response(profile, status=status.HTTP_200_OK)
 
+    # PUT: Update the user's profile
     def put(self, request):
-        """Update the current user's profile."""
         user = request.user
         serializer = ProfileSerializer(user.profile, data=request.data, partial=True)
 
@@ -128,3 +126,57 @@ class ProfileView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # DELETE: Delete the user's account after password verification
+    def delete(self, request):
+        user = request.user
+        password_serializer = PasswordVerifySerializer(data=request.data, context={'request': request})  # Pass request to context
+
+        if password_serializer.is_valid():
+            # Delete related models using direct relationships (no *_set needed for OneToOneField)
+            user.profile.delete()
+            user.addiction_set.all().delete()  # Deletes all Addiction entries for the user
+            if hasattr(user, 'usagetracking'):  # Check if the user has a related UsageTracking
+                user.usagetracking.delete()  # Deletes UsageTracking entry for the user
+            if hasattr(user, 'onboardingdata'):  # Directly access onboardingdata (since it's OneToOneField)
+                user.onboardingdata.delete()  # Deletes OnboardingData entry for the user
+
+            # Finally, delete the user account from the User table
+            user.delete()
+
+            return Response({'detail': 'Account deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+
+        return Response(password_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        
+
+class AddictionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get the current user's addiction data."""
+        user = request.user
+
+        addiction = Addiction.objects.filter(user=user).first()
+
+        if addiction:
+            addiction_data = AddictionSerializer(addiction).data
+            return Response(addiction_data, status=status.HTTP_200_OK)
+        return Response({'detail': 'No addiction data found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request):
+        """Update the current user's addiction data."""
+        user = request.user
+
+        addiction = Addiction.objects.filter(user=user).first()
+
+        if addiction:
+            serializer = AddictionSerializer(addiction, data=request.data, partial=True)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({'detail': 'No addiction data found.'}, status=status.HTTP_404_NOT_FOUND)

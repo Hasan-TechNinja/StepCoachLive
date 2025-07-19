@@ -185,3 +185,32 @@ class ProfileSerializer(serializers.ModelSerializer):
         
         instance.save()  # Save the profile
         return instance
+    
+
+class AddictionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Addiction
+        fields = ('addiction_type', 'answer_1', 'answer_2', 'answer_3')
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        addiction = Addiction.objects.create(user=user, **validated_data)
+        return addiction
+
+    def update(self, instance, validated_data):
+        instance.addiction_type = validated_data.get('addiction_type', instance.addiction_type)
+        instance.answer_1 = validated_data.get('answer_1', instance.answer_1)
+        instance.answer_2 = validated_data.get('answer_2', instance.answer_2)
+        instance.answer_3 = validated_data.get('answer_3', instance.answer_3)
+        instance.save()
+        return instance
+    
+
+class PasswordVerifySerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)
+
+    def validate_password(self, value):
+        user = self.context['request'].user  # Access the user from the request context
+        if not user.check_password(value):  # Check if the password matches
+            raise serializers.ValidationError("Invalid password.")
+        return value
