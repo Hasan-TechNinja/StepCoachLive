@@ -1,16 +1,20 @@
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenObtainSerializer
-import random
 from rest_framework import serializers
-from django.contrib.auth.models import User
-from rest_framework.validators import UniqueValidator
-from django.contrib.auth.password_validation import validate_password
-from django.core.mail import send_mail
-from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData
-from django.utils import timezone   # Assuming you have an EmailVerification model
-from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
+import random
 import uuid
 import string
+
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.mail import send_mail
+from django.utils import timezone
+from django.contrib.auth import authenticate
+
+from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData
+from subscription.models import SubscriptionPlan, UserSubscription
+
+from rest_framework.validators import UniqueValidator
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenObtainSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
