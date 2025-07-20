@@ -42,12 +42,10 @@ class UserSubscription(models.Model):
         return f"{self.user.username} - {self.plan.name} ({self.start_date} to {self.end_date})"
 
     def save(self, *args, **kwargs):
-        # Automatically calculate end_date for monthly, yearly plans
         if self.plan:
             if self.plan.is_free():
-                self.end_date = None  # Free plan has no expiry
+                self.end_date = None # 
             elif self.plan.duration_days and not self.end_date:
-                # Calculate end_date based on the duration for monthly/yearly plans
                 self.end_date = self.start_date + timedelta(days=self.plan.duration_days)
         super().save(*args, **kwargs)
 

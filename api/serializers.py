@@ -218,3 +218,25 @@ class PasswordVerifySerializer(serializers.Serializer):
         if not user.check_password(value):  # Check if the password matches
             raise serializers.ValidationError("Invalid password.")
         return value
+    
+
+class SubscriptionPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionPlan
+        fields = ['id', 'name', 'price', 'duration_days', 'features', 'plan_type']
+        orders = ['-price']
+
+
+class UserSubscriptionSerializer(serializers.ModelSerializer):
+    plan = SubscriptionPlanSerializer()  # Nested SubscriptionPlan serializer
+
+    class Meta:
+        model = UserSubscription
+        fields = ['id', 'user', 'plan', 'start_date', 'end_date', 'is_active', 'last_renewed']
+    
+    def update(self, instance, validated_data):
+        plan_data = validated_data.pop('plan', None)
+        if plan_data:
+            plan = SubscriptionPlan.objects.get(id=plan_data['id'])
+            instance.plan = plan
+        return super().update(instance, validated_data)
