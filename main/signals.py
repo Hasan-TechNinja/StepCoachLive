@@ -21,3 +21,5 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
             instance.usagetracking.save()
         if hasattr(instance, 'onboardingdata'):
             instance.onboardingdata.save()
+        if hasattr(instance, 'timer'):
+            instance.timer.save()

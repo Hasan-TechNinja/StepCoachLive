@@ -28,6 +28,9 @@ urlpatterns = [
     path('progress/submit/', views.SubmitProgressResponses.as_view(), name='submit-progress-responses'),
     path('progress/result/', views.ProgressResultView.as_view(), name='progress-result/'),
     path('report/', views.ReportView.as_view(), name='report'),
+
+    path('timer/', views.TimerView.as_view(), name='get_timer'),
+    path('restart-timer/', views.RestartTimerView.as_view(), name='restart_timer'),
 ]
 
 # Static files handling (e.g., media files)

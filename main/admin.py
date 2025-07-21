@@ -72,3 +72,12 @@ class ReportAdmin(admin.ModelAdmin):
     list_filter = ('uploaded_at',)
 
 admin.site.register(Report, ReportAdmin)
+
+
+class TimerAdmin(admin.ModelAdmin):
+    list_display = (
+        'user', 'start_time', 'last_restart_time'
+    )
+    search_fields = ('user__email',)
+    list_filter = ('start_time', 'last_restart_time')
+admin.site.register(Timer, TimerAdmin)

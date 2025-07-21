@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report
+from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -254,7 +254,6 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
     
 
-
 class ProgressAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProgressAnswer
@@ -281,3 +280,11 @@ class ProgressResponseSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("You have already answered this question.")
         
         return data
+    
+
+class TimerSerializer(serializers.ModelSerializer):
+    elapsed_time = serializers.CharField(source='get_elapsed_time', read_only=True)
+
+    class Meta:
+        model = Timer
+        fields = ['start_time', 'last_restart_time', 'elapsed_time']

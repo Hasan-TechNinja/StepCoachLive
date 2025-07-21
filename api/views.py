@@ -10,8 +10,8 @@ from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer
-from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report
+from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer
+from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -482,3 +482,29 @@ class ReportView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class TimerView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            timer = Timer.objects.get(user=request.user)
+            
+            serializer = TimerSerializer(timer)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Timer.DoesNotExist:
+            return Response({"error": "Timer not found for this user"}, status=status.HTTP_404_NOT_FOUND)
+    
+    
+class RestartTimerView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            timer = Timer.objects.get(user=request.user)
+            
+            timer.restart()
+            return Response({"message": "Timer restarted", "elapsed_time": timer.get_elapsed_time()}, status=status.HTTP_200_OK)
+        except Timer.DoesNotExist:
+            return Response({"error": "Timer not found for this user"}, status=status.HTTP_404_NOT_FOUND)

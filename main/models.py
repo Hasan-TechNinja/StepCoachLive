@@ -101,7 +101,7 @@ class ProgressResponse(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'question')  # One answer per question per user
+        unique_together = ('user', 'question')
 
     def __str__(self):
         return f"{self.user.email} - {self.question.text} - {self.answer.text}"
@@ -115,3 +115,24 @@ class Report(models.Model):
 
     def __str__(self):
         return f"{self.user.email} Report - {self.title}"
+    
+
+class Timer(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    start_time = models.DateTimeField()
+    last_restart_time = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Timer for {self.user.username} started at {self.start_time}"
+
+    def get_elapsed_time(self):
+        """Return the elapsed time since the last restart."""
+        now = timezone.now()
+        last_restart = self.last_restart_time or self.start_time
+        elapsed_time = now - last_restart
+        return str(elapsed_time)
+
+    def restart(self):
+        """Restart the timer by updating the last restart time to now."""
+        self.last_restart_time = timezone.now()
+        self.save()
