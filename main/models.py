@@ -32,13 +32,6 @@ class Profile(models.Model):
     def __str__(self):
         return f"{self.user.email} Profile"
 
-class Report(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    file = models.FileField(upload_to='reports/')
-    title = models.CharField(max_length=100, default="Report")
-    uploaded_at = models.DateField(auto_now_add=True)
-
-
 '''class StaticPage(models.Model):
     name = models.CharField(max_length=100, unique=True)  # e.g. 'privacy', 'terms'
     content = models.TextField()
@@ -112,3 +105,13 @@ class ProgressResponse(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.question.text} - {self.answer.text}"
+    
+
+class Report(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    file = models.FileField(upload_to='reports/')
+    title = models.CharField(max_length=100, default="Report")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} Report - {self.title}"

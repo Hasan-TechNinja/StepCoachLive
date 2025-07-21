@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse
+from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -190,6 +190,18 @@ class ProfileSerializer(serializers.ModelSerializer):
         instance.save()  # Save the profile
         return instance
     
+
+class ReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Report
+        fields = ['id', 'file', 'title', 'uploaded_at']
+        read_only_fields = ['id', 'user', 'uploaded_at']
+
+    def create(self, validated_data):
+        user = self.context.get('request').user
+        validated_data['user'] = user
+        return super().create(validated_data)
+
 
 class AddictionSerializer(serializers.ModelSerializer):
     class Meta:

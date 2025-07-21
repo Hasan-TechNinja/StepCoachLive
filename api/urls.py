@@ -27,6 +27,7 @@ urlpatterns = [
     path('progress-test/', views.UserProgressTest.as_view(), name='progress-questions'),
     path('progress/submit/', views.SubmitProgressResponses.as_view(), name='submit-progress-responses'),
     path('progress/result/', views.ProgressResultView.as_view(), name='progress-result/'),
+    path('report/', views.ReportView.as_view(), name='report'),
 ]
 
 # Static files handling (e.g., media files)

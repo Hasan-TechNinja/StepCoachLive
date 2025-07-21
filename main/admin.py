@@ -23,12 +23,6 @@ class ProfileAdmin(admin.ModelAdmin):
 admin.site.register(Profile, ProfileAdmin)
 
 
-class ReportAdmin(admin.ModelAdmin):
-    list_display = ('user', 'title', 'uploaded_at')
-    search_fields = ('user__email', 'title')
-    list_filter = ('uploaded_at',)
-admin.site.register(Report, ReportAdmin)
-
 class AddictionAdmin(admin.ModelAdmin):
     list_display = ('user', 'addiction_type', 'created_at')
     search_fields = ('user__email', 'addiction_type')
@@ -69,3 +63,12 @@ class ProgressResponseAdmin(admin.ModelAdmin):
 
 admin.site.register(ProgressResponse, ProgressResponseAdmin)
 
+
+class ReportAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'user', 'file', 'title', 'uploaded_at'
+    )
+    search_fields = ('user__email', 'title')
+    list_filter = ('uploaded_at',)
+
+admin.site.register(Report, ReportAdmin)
