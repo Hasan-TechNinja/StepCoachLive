@@ -83,3 +83,32 @@ class OnboardingData(models.Model):
     improvement_goals = models.ManyToManyField(GoalOption, blank=True)
     selected_milestone = models.ForeignKey(MilestoneOption, on_delete=models.SET_NULL, null=True, blank=True)
     completed = models.BooleanField(default=False)
+
+
+class ProgressQuestion(models.Model):
+    text = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.text
+
+
+class ProgressAnswer(models.Model):
+    question = models.ForeignKey(ProgressQuestion, on_delete=models.CASCADE, related_name='answers')
+    text = models.CharField(max_length=255)
+
+    def __str__(self):
+        return f"{self.question.text} - {self.text}"
+
+
+class ProgressResponse(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    question = models.ForeignKey(ProgressQuestion, on_delete=models.CASCADE)
+    answer = models.ForeignKey(ProgressAnswer, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'question')  # One answer per question per user
+
+    def __str__(self):
+        return f"{self.user.email} - {self.question.text} - {self.answer.text}"

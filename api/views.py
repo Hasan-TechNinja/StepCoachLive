@@ -10,8 +10,8 @@ from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, UserSubscriptionSerializer
-from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData
+from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer
+from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -21,6 +21,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 
 # Create your views here.
@@ -76,23 +77,25 @@ class LogoutView(APIView):
 
     def post(self, request):
         refresh_token = request.data.get("refresh")
-        
+
         if refresh_token is None:
             return Response({"detail": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Attempt to create a RefreshToken instance from the provided token
+            # Create token object from the refresh token string
             token = RefreshToken(refresh_token)
 
-            # If token is valid, blacklist it
+            # Blacklist the token
             token.blacklist()
+
             return Response({"detail": "Logout successful."}, status=status.HTTP_205_RESET_CONTENT)
 
+        except InvalidToken:
+            return Response({"detail": "The token is invalid or expired."}, status=status.HTTP_400_BAD_REQUEST)
         except TokenError as e:
-            # Catch token errors and provide specific error message
-            return Response({
-                "detail": f"Invalid or expired refresh token: {str(e)}"
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
 class EmailLoginView(TokenObtainPairView):
@@ -395,3 +398,67 @@ class StripeWebhookView(APIView):
 
         # Unexpected event type
         return JsonResponse({'message': 'Event type not supported'}, status=400)
+    
+
+# --------------------------------------- End of Subscription --------------------------------------------------------
+
+
+class UserProgressTest(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve all active progress questions with their answer options."""
+        questions = ProgressQuestion.objects.filter(is_active=True).prefetch_related('answers')
+        serializer = ProgressQuestionSerializer(questions, many=True)
+        return Response({'questions': serializer.data}, status=status.HTTP_200_OK)
+    
+
+class SubmitProgressResponses(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        responses = request.data.get('responses', [])
+
+        if not responses:
+            return Response({"detail": "No responses provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        saved = []
+        errors = []
+
+        for entry in responses:
+            question_id = entry.get('question')
+            answer_id = entry.get('answer')
+
+            try:
+                question = ProgressQuestion.objects.get(id=question_id)
+                answer = ProgressAnswer.objects.get(id=answer_id, question=question)
+            except ProgressQuestion.DoesNotExist:
+                errors.append({"question": question_id, "error": "Question not found"})
+                continue
+            except ProgressAnswer.DoesNotExist:
+                errors.append({"answer": answer_id, "error": "Answer not valid for question"})
+                continue
+
+            # Check if user already answered
+            if ProgressResponse.objects.filter(user=request.user, question=question).exists():
+                errors.append({"question": question_id, "error": "Already answered"})
+                continue
+
+            response_obj = ProgressResponse(user=request.user, question=question, answer=answer)
+            response_obj.save()
+            saved.append({"question": question_id, "answer": answer_id})
+
+        return Response({
+            "saved": saved,
+            "errors": errors
+        }, status=status.HTTP_201_CREATED if saved else status.HTTP_400_BAD_REQUEST)
+    
+
+class ProgressResultView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve the user's progress responses."""
+        responses = ProgressResponse.objects.filter(user=request.user).select_related('question', 'answer')
+        serializer = ProgressResponseSerializer(responses, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

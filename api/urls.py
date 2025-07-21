@@ -23,6 +23,10 @@ urlpatterns = [
     path('subscription-plans/', views.SubscriptionPlanView.as_view(), name='report'),
     path('webhooks/stripe/', views.StripeWebhookView.as_view(), name='stripe-webhook'),
     path('', include(router.urls)),
+
+    path('progress-test/', views.UserProgressTest.as_view(), name='progress-questions'),
+    path('progress/submit/', views.SubmitProgressResponses.as_view(), name='submit-progress-responses'),
+    path('progress/result/', views.ProgressResultView.as_view(), name='progress-result/'),
 ]
 
 # Static files handling (e.g., media files)

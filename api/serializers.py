@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData
+from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -240,3 +240,32 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
             plan = SubscriptionPlan.objects.get(id=plan_data['id'])
             instance.plan = plan
         return super().update(instance, validated_data)
+    
+
+
+class ProgressAnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProgressAnswer
+        fields = ['id', 'text']
+
+class ProgressQuestionSerializer(serializers.ModelSerializer):
+    answers = ProgressAnswerSerializer(many=True)
+
+    class Meta:
+        model = ProgressQuestion
+        fields = ['id', 'text', 'answers']
+
+
+class ProgressResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProgressResponse
+        fields = ['id', 'user', 'question', 'answer', 'created_at']
+
+    def validate(self, data):
+        user = data['user']
+        question = data['question']
+        
+        if ProgressResponse.objects.filter(user=user, question=question).exists():
+            raise serializers.ValidationError("You have already answered this question.")
+        
+        return data
