@@ -34,7 +34,14 @@ admin.site.register(UsageTracking)
 admin.site.register(AddictionOption)
 admin.site.register(GoalOption)
 admin.site.register(MilestoneOption)
-admin.site.register(OnboardingData)
+
+
+class OnboardingDataAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'user', 'days_per_week', 'drinks_per_day','completed'
+    )
+
+admin.site.register(OnboardingData, OnboardingDataAdmin)
 
 
 class ProgressAnswerInline(admin.TabularInline):

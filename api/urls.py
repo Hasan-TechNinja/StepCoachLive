@@ -18,8 +18,6 @@ urlpatterns = [
     path('password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
     path('profile/', views.ProfileView.as_view(), name='profile'),
-    path('addiction/', views.AddictionView.as_view(), name='addiction'),
-    path('onboarding/', views.OnboardingDataView.as_view(), name='onboarding_data'),
     path('privacy-policy/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
     path('terms-conditions/', views.TermsConditionsView.as_view(), name='terms_conditions'),
     path('support-contact/', views.SupportContactView.as_view(), name='support_contact'),
@@ -35,6 +33,13 @@ urlpatterns = [
 
     path('timer/', views.TimerView.as_view(), name='get_timer'),
     path('restart-timer/', views.RestartTimerView.as_view(), name='restart_timer'),
+
+    path('addictions/', views.AddictionSelectionView.as_view(), name='addiction-selection'),
+    path('goals/', views.GoalSelectionView.as_view(), name='goal-selection'),
+    path('milestones/', views.MilestoneSelectionView.as_view(), name='milestone-selection'),
+    path('drinking-habits/', views.DrinkingHabitsView.as_view(), name='drinking-habits'),
+    path('triggers-text/', views.TriggersTextView.as_view(), name='triggers-text'),
+    path('api/onboarding/', views.OnboardingDataView.as_view(), name='onboarding-data'),
 ]
 
 # Static files handling (e.g., media files)

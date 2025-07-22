@@ -11,8 +11,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 
-from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, OnboardingDataSerializer
-from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact
+from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, GoalOptionSerializer, MilestoneOptionSerializer
+from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, GoalOption, MilestoneOption, OnboardingData
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -178,30 +178,170 @@ class ProfileView(APIView):
 
         return Response(password_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        
 
-class AddictionView(APIView):
+
+class AddictionSelectionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        addiction = OnboardingData.objects.all()
+        """Retrieve a list of all addictions."""
+        addictions = AddictionOption.objects.all()
+        serializer = AddictionOptionSerializer(addictions, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        """Save the selected addictions."""
+        try:
+            onboarding_data, created = OnboardingData.objects.get_or_create(user=request.user)
+            addiction_ids = request.data.get("addictions", [])
+            addictions = AddictionOption.objects.filter(id__in=addiction_ids)
+            onboarding_data.addictions.set(addictions)
+            onboarding_data.save()
+            return Response({"detail": "Addictions updated successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GoalSelectionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve a list of all improvement goals."""
+        goals = GoalOption.objects.all()
+        serializer = GoalOptionSerializer(goals, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        """Save the selected improvement goals."""
+        try:
+            onboarding_data = OnboardingData.objects.get(user=request.user)
+            goal_ids = request.data.get("improvement_goals", [])
+            if len(goal_ids) > 3:
+                return Response({"detail": "You can only select up to 3 goals."}, status=status.HTTP_400_BAD_REQUEST)
+            goals = GoalOption.objects.filter(id__in=goal_ids)
+            onboarding_data.improvement_goals.set(goals)
+            onboarding_data.save()
+            return Response({"detail": "Improvement goals updated."}, status=status.HTTP_200_OK)
+        except OnboardingData.DoesNotExist:
+            return Response({"detail": "Onboarding data not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+class MilestoneSelectionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve a list of all milestones."""
+        milestones = MilestoneOption.objects.all()
+        serializer = MilestoneOptionSerializer(milestones, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        """Save the selected milestone."""
+        try:
+            # Ensure a valid milestone ID is provided
+            milestone_id = request.data.get("selected_milestone", None)
+            if not milestone_id:
+                return Response({"detail": "Milestone ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Get the MilestoneOption object by ID
+            milestone = MilestoneOption.objects.get(id=milestone_id)
+
+            # Ensure the user's onboarding data exists
+            onboarding_data, created = OnboardingData.objects.get_or_create(user=request.user)
+
+            # Set the selected milestone
+            onboarding_data.selected_milestone = milestone
+            onboarding_data.save()
+
+            return Response({"detail": "Milestone selected successfully."}, status=status.HTTP_200_OK)
         
+        except MilestoneOption.DoesNotExist:
+            return Response({"detail": "Milestone not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class DrinkingHabitsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        """Update the drinking habits of the user."""
+        try:
+            onboarding_data = OnboardingData.objects.get(user=request.user)
+            onboarding_data.days_per_week = request.data.get("days_per_week", 0)
+            onboarding_data.drinks_per_day = request.data.get("drinks_per_day", 0)
+            onboarding_data.save()
+            return Response({"detail": "Drinking habits updated."}, status=status.HTTP_200_OK)
+        except OnboardingData.DoesNotExist:
+            return Response({"detail": "Onboarding data not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+class TriggersTextView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        """Save the triggers text."""
+        try:
+            # Check if onboarding data exists for the authenticated user
+            onboarding_data, created = OnboardingData.objects.get_or_create(user=request.user)
+            
+            # Update triggers text and mark the onboarding process as completed
+            onboarding_data.triggers_text = request.data.get("triggers_text", "")
+            onboarding_data.completed = True  # Mark the onboarding as complete
+            
+            # Save the changes
+            onboarding_data.save()
+
+            return Response({"detail": "Triggers updated."}, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 class OnboardingDataView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        """Retrieve the onboarding data for the authenticated user."""
+        """Retrieve all the onboarding data for the authenticated user."""
         try:
-            # Ensure that the user is authenticated and has associated onboarding data
+            # Retrieve the onboarding data for the authenticated user
             onboarding_data = OnboardingData.objects.get(user=request.user)
-            serializer = OnboardingDataSerializer(onboarding_data)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+
+            # Retrieve related data (addictions, improvement_goals, selected_milestone)
+            addictions = AddictionOption.objects.filter(id__in=[addiction.id for addiction in onboarding_data.addictions.all()])
+            goals = GoalOption.objects.filter(id__in=[goal.id for goal in onboarding_data.improvement_goals.all()])
+            
+            # Check if the milestone exists and retrieve it, otherwise set as None
+            milestone = onboarding_data.selected_milestone
+            milestone_data = None
+            if milestone:
+                milestone_data = MilestoneOptionSerializer(milestone).data
+
+            # Serialize related data
+            addiction_serializer = AddictionOptionSerializer(addictions, many=True)
+            goal_serializer = GoalOptionSerializer(goals, many=True)
+
+            # Combine all data into a single response
+            data = {
+                "addictions": addiction_serializer.data,
+                "days_per_week": onboarding_data.days_per_week,
+                "drinks_per_day": onboarding_data.drinks_per_day,
+                "improvement_goals": goal_serializer.data,
+                "selected_milestone": milestone_data,
+                "triggers_text": onboarding_data.triggers_text,
+                "completed": onboarding_data.completed
+            }
+
+            return Response(data, status=status.HTTP_200_OK)
+
         except OnboardingData.DoesNotExist:
             return Response({"detail": "Onboarding data not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
 
 
 class ReportView(APIView):
