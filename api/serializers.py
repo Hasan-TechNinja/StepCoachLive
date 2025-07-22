@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer
+from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -292,3 +292,30 @@ class TimerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Timer
         fields = ['start_time', 'last_restart_time', 'elapsed_time']
+
+
+class PrivacyPolicySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PrivacyPolicy
+        fields = ['name', 'content', 'last_updated']
+
+    def __str__(self):
+        return self.name
+    
+
+class TermsConditionsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TermsConditions
+        fields = ['name', 'content', 'last_updated']
+
+    def __str__(self):
+        return self.name
+    
+
+class SupportContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportContact
+        fields = ['email', 'phone_primary', 'phone_secondary']
+
+    def __str__(self):
+        return f"Support Contact - {self.email}"

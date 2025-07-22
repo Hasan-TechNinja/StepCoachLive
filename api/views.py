@@ -10,8 +10,8 @@ from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer
-from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer
+from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer
+from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -197,7 +197,68 @@ class AddictionView(APIView):
         
         return Response({'detail': 'No addiction data found.'}, status=status.HTTP_404_NOT_FOUND)
     
+
+class ReportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+
+        reports = Report.objects.filter(user=request.user)
+        serializer = ReportSerializer(reports, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
+    def post(self, request):
+
+        serializer = ReportSerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    
+class PrivacyPolicyView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve the privacy policy."""
+        try:
+            policy = PrivacyPolicy.objects.first()
+            serializer = PrivacyPolicySerializer(policy)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except PrivacyPolicy.DoesNotExist:
+            return Response({"detail": "Privacy policy not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+
+class TermsConditionsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve the terms and conditions."""
+        try:
+            terms = TermsConditions.objects.first()
+            serializer = TermsConditionsSerializer(terms)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except TermsConditions.DoesNotExist:
+            return Response({"detail": "Terms and conditions not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+class SupportContactView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve the support contact information."""
+        try:
+            contact = SupportContact.objects.first()
+            serializer = SupportContactSerializer(contact)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except SupportContact.DoesNotExist:
+            return Response({"detail": "Support contact not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
 # --------------------------------------- Subscription --------------------------------------------------------
    
 
@@ -463,25 +524,6 @@ class ProgressResultView(APIView):
         serializer = ProgressResponseSerializer(responses, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-
-class ReportView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-
-        reports = Report.objects.filter(user=request.user)
-        serializer = ReportSerializer(reports, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    def post(self, request):
-
-        serializer = ReportSerializer(data=request.data, context={'request': request})
-        
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
 class TimerView(APIView):

@@ -81,3 +81,23 @@ class TimerAdmin(admin.ModelAdmin):
     search_fields = ('user__email',)
     list_filter = ('start_time', 'last_restart_time')
 admin.site.register(Timer, TimerAdmin)
+
+
+class PrivacyPolicyAdmin(admin.ModelAdmin):
+    list_display = ('name', 'last_updated')
+    search_fields = ('name',)
+    list_filter = ('last_updated',)
+admin.site.register(PrivacyPolicy, PrivacyPolicyAdmin)
+
+class TermsConditionsAdmin(admin.ModelAdmin):
+    list_display = ('name', 'last_updated')
+    search_fields = ('name',)
+    list_filter = ('last_updated',)
+admin.site.register(TermsConditions, TermsConditionsAdmin)
+
+
+class SupportContactAdmin(admin.ModelAdmin):
+    list_display = ('email', 'phone_primary', 'phone_secondary')
+    search_fields = ('email', 'phone_primary', 'phone_secondary')
+    list_filter = ('email',)
+admin.site.register(SupportContact, SupportContactAdmin)

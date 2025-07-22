@@ -3,6 +3,7 @@ from django.db import models
 import random
 from django.contrib.auth.models import User
 from django.utils import timezone
+from ckeditor.fields import RichTextField
 
 # Create your models here.
 class EmailVerification(models.Model):
@@ -32,18 +33,33 @@ class Profile(models.Model):
     def __str__(self):
         return f"{self.user.email} Profile"
 
-'''class StaticPage(models.Model):
-    name = models.CharField(max_length=100, unique=True)  # e.g. 'privacy', 'terms'
-    content = models.TextField()
-    last_updated = models.DateField(auto_now=True)'''
+
+class PrivacyPolicy(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    content = RichTextField()
+    last_updated = models.DateField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
 
 
-'''class SupportContact(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+class TermsConditions(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    content = RichTextField()
+    last_updated = models.DateField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class SupportContact(models.Model):
     email = models.EmailField()
     phone_primary = models.CharField(max_length=20)
     phone_secondary = models.CharField(max_length=20, blank=True)
-'''
+
+    def __str__(self):
+        return f"Support Contact - {self.email}"
+    
 
 class Addiction(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -52,6 +68,7 @@ class Addiction(models.Model):
     answer_2 = models.TextField(blank=True)
     answer_3 = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
 
 class UsageTracking(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

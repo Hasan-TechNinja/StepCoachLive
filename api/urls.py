@@ -19,6 +19,9 @@ urlpatterns = [
 
     path('profile/', views.ProfileView.as_view(), name='profile'),
     path('addiction/', views.AddictionView.as_view(), name='addiction'),
+    path('privacy-policy/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
+    path('terms-conditions/', views.TermsConditionsView.as_view(), name='terms_conditions'),
+    path('support-contact/', views.SupportContactView.as_view(), name='support_contact'),
 
     path('subscription-plans/', views.SubscriptionPlanView.as_view(), name='report'),
     path('webhooks/stripe/', views.StripeWebhookView.as_view(), name='stripe-webhook'),
