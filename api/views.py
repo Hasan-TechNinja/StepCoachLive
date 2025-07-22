@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate, login
 
 from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer
 from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact
@@ -44,6 +45,7 @@ class RegisterView(APIView):
 
 class VerifyEmailView(APIView):
     permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         code = request.data.get('code')
         email = request.data.get('email')
@@ -61,8 +63,20 @@ class VerifyEmailView(APIView):
 
                 user.is_active = True
                 user.save()
-                verification.delete()  # Remove the verification record after successful verification
-                return Response({"message": "Email verified successfully."}, status=status.HTTP_200_OK)
+
+                verification.delete()
+
+                login(request, user)
+
+                refresh = RefreshToken.for_user(user)
+                access_token = refresh.access_token
+
+                return Response({
+                    'message': 'Email verified successfully and user logged in.',
+                    # 'access': str(access_token),
+                    'refresh': str(refresh)
+                }, status=status.HTTP_200_OK)
+
             else:
                 return Response({"error": "Invalid verification code."}, status=status.HTTP_400_BAD_REQUEST)
 
