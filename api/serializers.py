@@ -268,9 +268,13 @@ class ProgressQuestionSerializer(serializers.ModelSerializer):
 
 
 class ProgressResponseSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.username', read_only=True)
+    question_text = serializers.CharField(source='question.text', read_only=True)
+    answer_text = serializers.CharField(source='answer.text', read_only=True)
+
     class Meta:
         model = ProgressResponse
-        fields = ['id', 'user', 'question', 'answer', 'created_at']
+        fields = ['id', 'user_name', 'question_text', 'answer_text', 'created_at']
 
     def validate(self, data):
         user = data['user']
