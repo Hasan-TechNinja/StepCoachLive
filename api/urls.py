@@ -19,6 +19,7 @@ urlpatterns = [
 
     path('profile/', views.ProfileView.as_view(), name='profile'),
     path('addiction/', views.AddictionView.as_view(), name='addiction'),
+    path('onboarding/', views.OnboardingDataView.as_view(), name='onboarding_data'),
     path('privacy-policy/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
     path('terms-conditions/', views.TermsConditionsView.as_view(), name='terms_conditions'),
     path('support-contact/', views.SupportContactView.as_view(), name='support_contact'),

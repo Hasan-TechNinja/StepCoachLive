@@ -11,7 +11,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 
-from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer
+from api.serializers import PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, OnboardingDataSerializer
 from main.models import EmailVerification, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact
 from subscription.models import SubscriptionPlan, UserSubscription
 
@@ -184,33 +184,25 @@ class AddictionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        """Get the current user's addiction data."""
-        user = request.user
-
-        addiction = Addiction.objects.filter(user=user).first()
-
-        if addiction:
-            addiction_data = AddictionSerializer(addiction).data
-            return Response(addiction_data, status=status.HTTP_200_OK)
-        return Response({'detail': 'No addiction data found.'}, status=status.HTTP_404_NOT_FOUND)
-
-    def put(self, request):
-        """Update the current user's addiction data."""
-        user = request.user
-
-        addiction = Addiction.objects.filter(user=user).first()
-
-        if addiction:
-            serializer = AddictionSerializer(addiction, data=request.data, partial=True)
-
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_200_OK)
-
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        addiction = OnboardingData.objects.all()
         
-        return Response({'detail': 'No addiction data found.'}, status=status.HTTP_404_NOT_FOUND)
-    
+
+class OnboardingDataView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve the onboarding data for the authenticated user."""
+        try:
+            # Ensure that the user is authenticated and has associated onboarding data
+            onboarding_data = OnboardingData.objects.get(user=request.user)
+            serializer = OnboardingDataSerializer(onboarding_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except OnboardingData.DoesNotExist:
+            return Response({"detail": "Onboarding data not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
 
 class ReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]

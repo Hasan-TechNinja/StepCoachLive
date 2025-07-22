@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact
+from main.models import EmailVerification, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, OnboardingData
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -319,3 +319,12 @@ class SupportContactSerializer(serializers.ModelSerializer):
 
     def __str__(self):
         return f"Support Contact - {self.email}"
+    
+    
+class OnboardingDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OnboardingData
+        fields = ['id', 'addictions', 'days_per_week', 'drinks_per_day', 'improvement_goals', 'selected_milestone', 'triggers_text', 'completed']
+
+    def __str__(self):
+        return f"Onboarding Data for {self.user.username}"

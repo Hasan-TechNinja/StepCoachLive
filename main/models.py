@@ -74,25 +74,41 @@ class UsageTracking(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     days_per_week = models.IntegerField(default=0)
     times_per_day = models.IntegerField(default=0)
+    
+    def __str__(self):
+        return f"Usage Tracking for {self.user.email}"
 
 
 class AddictionOption(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    
+    def __str__(self):
+        return self.name
 
 class GoalOption(models.Model):
     text = models.CharField(max_length=200)
 
+    def __str__(self):
+        return self.text
+
 class MilestoneOption(models.Model):
     label = models.CharField(max_length=100)
 
+    def __str__(self):
+        return self.label
+
 class OnboardingData(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
     addictions = models.ManyToManyField(AddictionOption, blank=True)
     days_per_week = models.PositiveIntegerField(default=0)
     drinks_per_day = models.PositiveIntegerField(default=0)
     improvement_goals = models.ManyToManyField(GoalOption, blank=True)
     selected_milestone = models.ForeignKey(MilestoneOption, on_delete=models.SET_NULL, null=True, blank=True)
+    triggers_text = models.TextField(blank=True, max_length=500)
     completed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Onboarding Data for {self.user.email if self.user else 'Unregistered User'}"
 
 
 class ProgressQuestion(models.Model):
