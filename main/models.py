@@ -60,51 +60,53 @@ class SupportContact(models.Model):
     def __str__(self):
         return f"Support Contact - {self.email}"
     
-
 class Addiction(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
     addiction_type = models.CharField(max_length=100)
-    answer_1 = models.TextField(blank=True)
-    answer_2 = models.TextField(blank=True)
-    answer_3 = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-
-class UsageTracking(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    days_per_week = models.IntegerField(default=0)
-    times_per_day = models.IntegerField(default=0)
-    
     def __str__(self):
-        return f"Usage Tracking for {self.user.email}"
+        return self.addiction_type
 
 
 class AddictionOption(models.Model):
+    addiction = models.ForeignKey(Addiction, on_delete=models.CASCADE, default=1)
     name = models.CharField(max_length=100, unique=True)
     
     def __str__(self):
         return self.name
 
-class GoalOption(models.Model):
-    text = models.CharField(max_length=200)
+
+class DayPerWeek(models.Model):
+    addiction = models.ForeignKey(Addiction, on_delete=models.CASCADE)
+    days = models.IntegerField(default=0)
+
+    def __str__(self):
+        return str(self.days)
+
+
+class TimesPerDay(models.Model):
+    addiction = models.ForeignKey(Addiction, on_delete=models.CASCADE)
+    times = models.IntegerField(default=0)
+
+    def __str__(self):
+        return str(self.times)
+
+
+class Trigger(models.Model):
+    addiction = models.ForeignKey(Addiction, on_delete=models.CASCADE)
+    text = models.TextField(max_length=500)
 
     def __str__(self):
         return self.text
 
-class MilestoneOption(models.Model):
-    label = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.label
 
 class OnboardingData(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
-    addictions = models.ManyToManyField(AddictionOption, blank=True)
+    addiction = models.ForeignKey(Addiction, on_delete=models.CASCADE, blank=True, null=True)  # Make this nullable
+    addiction_option = models.ManyToManyField(AddictionOption, blank=True)
     days_per_week = models.PositiveIntegerField(default=0)
     drinks_per_day = models.PositiveIntegerField(default=0)
-    improvement_goals = models.ManyToManyField(GoalOption, blank=True)
-    selected_milestone = models.ForeignKey(MilestoneOption, on_delete=models.SET_NULL, null=True, blank=True)
-    triggers_text = models.TextField(blank=True, max_length=500)
+    trigger_text = models.TextField(blank=True, max_length=500)
     completed = models.BooleanField(default=False)
 
     def __str__(self):

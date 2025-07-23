@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import AddictionOption, EmailVerification, GoalOption, MilestoneOption, PasswordResetCode, Profile, Addiction, UsageTracking, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, OnboardingData, AddictionOption, GoalOption, MilestoneOption
+from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -206,20 +206,7 @@ class ReportSerializer(serializers.ModelSerializer):
 class AddictionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Addiction
-        fields = ('addiction_type', 'answer_1', 'answer_2', 'answer_3')
-
-    def create(self, validated_data):
-        user = self.context['request'].user
-        addiction = Addiction.objects.create(user=user, **validated_data)
-        return addiction
-
-    def update(self, instance, validated_data):
-        instance.addiction_type = validated_data.get('addiction_type', instance.addiction_type)
-        instance.answer_1 = validated_data.get('answer_1', instance.answer_1)
-        instance.answer_2 = validated_data.get('answer_2', instance.answer_2)
-        instance.answer_3 = validated_data.get('answer_3', instance.answer_3)
-        instance.save()
-        return instance
+        fields = "__all__"
     
 
 class PasswordVerifySerializer(serializers.Serializer):
@@ -327,14 +314,27 @@ class AddictionOptionSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 
-class GoalOptionSerializer(serializers.ModelSerializer):
+class OnboardingDataSerializer(serializers.ModelSerializer):
+    addiction = AddictionSerializer()
+    addiction_option = AddictionOptionSerializer(many=True)
     class Meta:
-        model = GoalOption
-        fields = ['id', 'text']
+        model = OnboardingData
+        fields = "__all__"
 
 
-
-class MilestoneOptionSerializer(serializers.ModelSerializer):
+class DayPerWeekSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MilestoneOption
-        fields = ['id', 'label']
+        model = OnboardingData
+        fields = ['days_per_week']
+
+
+class DrinksPerDaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OnboardingData
+        fields = ['drinks_per_day']
+
+
+class TriggerTextSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OnboardingData
+        fields = ['trigger_text']

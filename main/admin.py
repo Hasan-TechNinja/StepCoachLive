@@ -24,16 +24,15 @@ admin.site.register(Profile, ProfileAdmin)
 
 
 class AddictionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'addiction_type', 'created_at')
-    search_fields = ('user__email', 'addiction_type')
+    list_display = ('addiction_type', 'created_at')
+    search_fields = ('addiction_type',)
     list_filter = ('created_at',)   
 admin.site.register(Addiction, AddictionAdmin)
 
 
-admin.site.register(UsageTracking)
 admin.site.register(AddictionOption)
-admin.site.register(GoalOption)
-admin.site.register(MilestoneOption)
+# admin.site.register(GoalOption)
+# admin.site.register(MilestoneOption)
 
 
 class OnboardingDataAdmin(admin.ModelAdmin):

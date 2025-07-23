@@ -34,12 +34,16 @@ urlpatterns = [
     path('timer/', views.TimerView.as_view(), name='get_timer'),
     path('restart-timer/', views.RestartTimerView.as_view(), name='restart_timer'),
 
-    path('addictions/', views.AddictionSelectionView.as_view(), name='addiction-selection'),
-    path('goals/', views.GoalSelectionView.as_view(), name='goal-selection'),
-    path('milestones/', views.MilestoneSelectionView.as_view(), name='milestone-selection'),
+    path('addictions/', views.AddictionView.as_view(), name='addiction-selection'),
+    path('addictions/<int:pk>', views.AddictionDetailsView.as_view(), name='addiction'),
+    # path('goals/', views.GoalSelectionView.as_view(), name='goal-selection'),
+    # path('milestones/', views.MilestoneSelectionView.as_view(), name='milestone-selection'),
     path('drinking-habits/', views.DrinkingHabitsView.as_view(), name='drinking-habits'),
     path('triggers-text/', views.TriggersTextView.as_view(), name='triggers-text'),
-    path('api/onboarding/', views.OnboardingDataView.as_view(), name='onboarding-data'),
+    # path('day-per-week/', views.AddictionWeekView.as_view()),
+    path('drinks-rate/', views.DrinksRateView.as_view()),
+    path('trigger-text/', views.TriggerTextView.as_view()),
+    path('onboarding/', views.OnboardingView.as_view(), name='onboarding')
 ]
 
 # Static files handling (e.g., media files)
