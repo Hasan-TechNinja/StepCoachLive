@@ -116,6 +116,22 @@ class ImproveQuestionOption(models.Model):
     def __str__(self):
         return self.text
 
+class MilestoneQuestion(models.Model):
+    text = models.CharField(max_length=300)
+    created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.text
+
+
+class MilestoneOption(models.Model):
+    question = models.ForeignKey(MilestoneQuestion, on_delete=models.CASCADE)
+    text = models.CharField(max_length=200)
+    created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.question}'s {self.text}"
+
 
 class OnboardingData(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
@@ -126,6 +142,8 @@ class OnboardingData(models.Model):
     trigger_text = models.TextField(blank=True, max_length=500)
     improvement = models.ForeignKey(ImproveQuestion, on_delete=models.CASCADE, blank=True, null=True)
     improvement_option = models.ManyToManyField(ImproveQuestionOption, blank=True, null=True)
+    milestone = models.ForeignKey(MilestoneQuestion, on_delete=models.CASCADE, blank=True, null=True)
+    milestone_option = models.ManyToManyField(MilestoneOption, blank=True, null=True)
     completed = models.BooleanField(default=False)
 
     def __str__(self):

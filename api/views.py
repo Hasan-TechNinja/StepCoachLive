@@ -11,8 +11,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 
-from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption
-from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer
+from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption
+from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -387,6 +387,67 @@ class ImproveQuestionAnswerView(APIView):
         onboarding_data.save()
 
         return Response({"detail": "Improvement data saved successfully."}, status=status.HTTP_201_CREATED)
+
+
+class MilestoneQuestionAnswerView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+
+        questions = MilestoneQuestion.objects.all()
+        questions_data = []
+
+        for question in questions:
+
+            options = MilestoneOption.objects.filter(question=question)
+            
+            formatted_options = []
+            for option in options:
+                formatted_options.append({
+                    'option': option.id,
+                    'text': option.text
+                })
+            
+            question_data = {
+                'question': {
+                    'text': question.text
+                },
+                'options': formatted_options 
+            }
+            questions_data.append(question_data)
+
+        context = {
+            'questions': questions_data,
+        }
+
+        return Response(context, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user
+
+        milestone_options_data = request.data.get('milestone_options', [])
+
+        if not milestone_options_data:
+            return Response({"detail": "Milestone options are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            milestone_options = MilestoneOption.objects.filter(id__in=milestone_options_data)
+        except MilestoneOption.DoesNotExist:
+            return Response({"detail": "One or more milestone options are invalid."}, status=status.HTTP_400_BAD_REQUEST)
+
+        milestone_question = milestone_options.first().question
+
+        if len(milestone_options) > 1:
+            return Response({"detail": "You can select a maximum of 1 milestone options."}, status=status.HTTP_400_BAD_REQUEST)
+
+        onboarding_data, created = OnboardingData.objects.get_or_create(user=user)
+
+        onboarding_data.milestone = milestone_question
+        onboarding_data.milestone_option.set(milestone_options)
+        onboarding_data.save()
+
+        return Response({"detail": "Milestone data saved successfully."}, status=status.HTTP_201_CREATED)
+
 
         
 

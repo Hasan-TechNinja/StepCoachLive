@@ -123,3 +123,19 @@ class ImproveQuestionOptionAdmin(admin.ModelAdmin):
     )
 
 admin.site.register(ImproveQuestionOption, ImproveQuestionOptionAdmin)
+
+
+class MilestoneQuestionAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'text', 'created'
+    )
+    # list_filter = ('created')
+admin.site.register(MilestoneQuestion, MilestoneQuestionAdmin)
+
+
+class MilestoneOptionAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'question', 'text', 'created'
+    )
+
+admin.site.register(MilestoneOption, MilestoneOptionAdmin)

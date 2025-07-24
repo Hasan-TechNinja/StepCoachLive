@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption
+from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -318,16 +318,24 @@ class OnboardingDataSerializer(serializers.ModelSerializer):
     addiction = AddictionSerializer()
     addiction_option = AddictionOptionSerializer(many=True)
 
-    improvement = serializers.StringRelatedField()  # This will return the `text` of the ImproveQuestion
+    improvement = serializers.StringRelatedField()  
+    milestone = serializers.StringRelatedField() 
+
     improvement_option = serializers.SerializerMethodField()
+    milestone_option = serializers.SerializerMethodField()
 
     class Meta:
         model = OnboardingData
         fields = "__all__"
 
     def get_improvement_option(self, obj):
-        # This will return the `text` field for each selected option
+        
         return [{"option": option.id, "text": option.text} for option in obj.improvement_option.all()]
+
+    def get_milestone_option(self, obj):
+
+        return [{"option": option.id, "text": option.text} for option in obj.milestone_option.all()]
+
 
 
 class DayPerWeekSerializer(serializers.ModelSerializer):
@@ -358,3 +366,15 @@ class ImproveQuestionOptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ImproveQuestionOption
         fields = ['question' ,'text']
+
+
+class MilestoneQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MilestoneQuestion
+        fields = ['text']
+
+
+class MilestoneOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MilestoneOption
+        fields = ['question', 'text']
