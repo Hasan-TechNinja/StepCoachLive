@@ -614,6 +614,11 @@ class SubscriptionPlanView(APIView):
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 class UserSubscriptionViewSet(viewsets.GenericViewSet):
+
+    '''Subscription add demo
+    
+    ["Basic AI Chat", "Daily Check-ins", "Milestone Tracking", "Voice Responses", "Advanced Analytics", "Personalized Content", "Priority Support"]
+'''
     queryset = UserSubscription.objects.all()
     serializer_class = UserSubscriptionSerializer
     permission_classes = [permissions.IsAuthenticated]
