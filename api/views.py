@@ -11,8 +11,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 
-from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer
-from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption
+from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption
+from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -327,6 +327,67 @@ class TriggerTextView(APIView):
         else:
             # If `trigger_text` is not provided, return a bad request response
             return Response({"detail": "'trigger_text' field is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+class ImproveQuestionAnswerView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        questions = ImproveQuestion.objects.all()
+        questions_data = []
+
+        for question in questions:
+            options = ImproveQuestionOption.objects.filter(question=question)
+            
+            formatted_options = []
+            for option in options:
+                formatted_options.append({
+                    'option': option.id,
+                    'text': option.text
+                })
+            
+            question_data = {
+                'question': {
+                    'text': question.text
+                },
+                'options': formatted_options
+            }
+            questions_data.append(question_data)
+
+        context = {
+            'questions': questions_data,
+        }
+
+        return Response(context, status=status.HTTP_200_OK)
+    
+
+    def post(self, request):
+        user = request.user
+
+        improvement_options_data = request.data.get('improvement_options', [])
+
+        if not improvement_options_data:
+            return Response({"detail": "Improvement options are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            improvement_options = ImproveQuestionOption.objects.filter(id__in=improvement_options_data)
+        except ImproveQuestionOption.DoesNotExist:
+            return Response({"detail": "One or more improvement options are invalid."}, status=status.HTTP_400_BAD_REQUEST)
+
+        improvement_question = improvement_options.first().question
+
+        if len(improvement_options) > 3:
+            return Response({"detail": "You can select a maximum of 3 improvement options."}, status=status.HTTP_400_BAD_REQUEST)
+
+        onboarding_data, created = OnboardingData.objects.get_or_create(user=user)
+
+        onboarding_data.improvement = improvement_question
+        onboarding_data.improvement_option.set(improvement_options)
+        onboarding_data.save()
+
+        return Response({"detail": "Improvement data saved successfully."}, status=status.HTTP_201_CREATED)
+
         
 
 class OnboardingView(APIView):

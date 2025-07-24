@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption
+from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -317,9 +317,17 @@ class AddictionOptionSerializer(serializers.ModelSerializer):
 class OnboardingDataSerializer(serializers.ModelSerializer):
     addiction = AddictionSerializer()
     addiction_option = AddictionOptionSerializer(many=True)
+
+    improvement = serializers.StringRelatedField()  # This will return the `text` of the ImproveQuestion
+    improvement_option = serializers.SerializerMethodField()
+
     class Meta:
         model = OnboardingData
         fields = "__all__"
+
+    def get_improvement_option(self, obj):
+        # This will return the `text` field for each selected option
+        return [{"option": option.id, "text": option.text} for option in obj.improvement_option.all()]
 
 
 class DayPerWeekSerializer(serializers.ModelSerializer):
@@ -338,3 +346,15 @@ class TriggerTextSerializer(serializers.ModelSerializer):
     class Meta:
         model = OnboardingData
         fields = ['trigger_text']
+
+
+class ImproveQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImproveQuestion
+        fields = ['text']
+
+
+class ImproveQuestionOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImproveQuestionOption
+        fields = ['question' ,'text']

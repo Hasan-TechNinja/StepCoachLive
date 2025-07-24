@@ -107,3 +107,19 @@ class SupportContactAdmin(admin.ModelAdmin):
     search_fields = ('email', 'phone_primary', 'phone_secondary')
     list_filter = ('email',)
 admin.site.register(SupportContact, SupportContactAdmin)
+
+
+class ImproveQuestionAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'text', 'created'
+    )
+    # list_filter = ('created')
+admin.site.register(ImproveQuestion, ImproveQuestionAdmin)
+
+
+class ImproveQuestionOptionAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'question', 'text', 'created'
+    )
+
+admin.site.register(ImproveQuestionOption, ImproveQuestionOptionAdmin)
