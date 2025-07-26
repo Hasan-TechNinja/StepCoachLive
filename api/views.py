@@ -12,9 +12,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 import datetime
 import openai
+from rest_framework.exceptions import NotFound
 
-from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote
-from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer
+from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory
+from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -989,3 +990,29 @@ class DailyInspirationAPIView(APIView):
         ]
 
         return Response(quotes)
+    
+
+class SuggestionLiarView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Retrieve all suggestions."""
+        category = SuggestionCategory.objects.all().order_by('-created_at')  # You can add pagination here
+        serializer = SuggestionCategorySerializer(category, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class SuggestionDetailsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            suggestion = Suggestion.objects.get(pk=pk)
+        except Suggestion.DoesNotExist:
+            raise NotFound("Suggestion not found")
+        
+        suggestion.view_count += 1
+        suggestion.save()
+
+        serializer = SuggestionSerializer(suggestion)
+        return Response(serializer.data, status=status.HTTP_200_OK)

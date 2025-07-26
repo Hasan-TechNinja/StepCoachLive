@@ -146,3 +146,27 @@ class JournalEntryAdmin(admin.ModelAdmin):
     search_fields = ('user__email', 'title')
     list_filter = ('created_at', 'updated_at')  
 admin.site.register(JournalEntry, JournalEntryAdmin)
+
+
+class QuoteAdmin(admin.ModelAdmin):
+    list_display = ('date', 'text', 'author')
+    search_fields = ('text', 'author')
+    list_filter = ('date',)
+admin.site.register(Quote, QuoteAdmin)
+
+
+@admin.register(SuggestionCategory)
+class SuggestionCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'created_at')
+    search_fields = ('name',)
+
+
+@admin.register(Suggestion)
+class SuggestionAdmin(admin.ModelAdmin):
+    list_display = ('category', 'text_short', 'view_count', 'created_at')
+    list_filter = ('category',)
+    search_fields = ('text',)
+    
+    def text_short(self, obj):
+        return obj.text[:50] + '...' if len(obj.text) > 50 else obj.text
+    text_short.short_description = 'Text Preview'

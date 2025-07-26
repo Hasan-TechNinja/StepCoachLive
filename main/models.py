@@ -228,3 +228,24 @@ class Quote(models.Model):
 
     def __str__(self):
         return f"{self.text} — {self.author}"
+    
+
+class SuggestionCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    logo = models.ImageField(upload_to='suggestion_categories/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+    
+
+class Suggestion(models.Model):
+    category = models.ForeignKey(SuggestionCategory, on_delete=models.CASCADE)
+    text = models.TextField()
+    # video_url = models.URLField(blank=True, null=True)
+    video_file = models.FileField(upload_to='suggestion_videos/', blank=True, null=True)
+    view_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Suggestion in {self.category.name}: {self.text[:50]}..."

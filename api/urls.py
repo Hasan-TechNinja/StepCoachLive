@@ -49,7 +49,10 @@ urlpatterns = [
 
     path('journals/', views.JournalEntryView.as_view(), name='journal-entries'),
     path('journals/<int:pk>/', views.JournalEntryDetailView.as_view(), name='journal-entry-detail'),
-    path('daily/', views.DailyInspirationAPIView.as_view(), name='daily-inspiration')
+    path('daily/', views.DailyInspirationAPIView.as_view(), name='daily-inspiration'),
+    
+    path('suggestions/', views.SuggestionLiarView.as_view(), name='suggestions'),
+    path('suggestions/<int:pk>', views.SuggestionDetailsView.as_view(), name='suggestions'),
 ]
 
 # Static files handling (e.g., media files)

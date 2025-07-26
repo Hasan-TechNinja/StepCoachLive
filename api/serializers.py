@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote
+from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -392,3 +392,27 @@ class QuoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quote
         fields = ['date', 'text', 'author']
+
+
+class SuggestionCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SuggestionCategory
+        fields = ['id', 'name', 'logo', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def create(self, validated_data):
+        return super().create(validated_data)
+
+
+class SuggestionSerializer(serializers.ModelSerializer):
+    category = SuggestionCategorySerializer()  # Nested serializer for category details
+
+    class Meta:
+        model = Suggestion
+        fields = ['id', 'category', 'text', 'video_file', 'view_count', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def create(self, validated_data):
+        user = self.context.get('request').user
+        validated_data['user'] = user
+        return super().create(validated_data)
