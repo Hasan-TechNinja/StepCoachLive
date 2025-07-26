@@ -902,3 +902,40 @@ class JournalEntryView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+class JournalEntryDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        """Retrieve a specific journal entry by ID."""
+        try:
+            entry = JournalEntry.objects.get(id=pk, user=request.user)
+            serializer = JournalEntrySerializer(entry)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except JournalEntry.DoesNotExist:
+            return Response({"detail": "Journal entry not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, pk):
+        """Update a specific journal entry."""
+        try:
+            entry = JournalEntry.objects.get(id=pk, user=request.user)
+            serializer = JournalEntrySerializer(entry, data=request.data, partial=True)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except JournalEntry.DoesNotExist:
+            return Response({"detail": "Journal entry not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        """Delete a specific journal entry."""
+        try:
+            entry = JournalEntry.objects.get(id=pk, user=request.user)
+            entry.delete()
+            return Response({"detail": "Journal entry deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+        except JournalEntry.DoesNotExist:
+            return Response({"detail": "Journal entry not found."}, status=status.HTTP_404_NOT_FOUND)
