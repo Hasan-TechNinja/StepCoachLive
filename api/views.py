@@ -1004,15 +1004,61 @@ class SuggestionLiarView(APIView):
 
 class SuggestionDetailsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-
+    
     def get(self, request, pk):
+        category = SuggestionCategory.objects.get(id = pk)
+        suggestions = Suggestion.objects.filter(category=category).order_by('-created_at')  # You can add pagination here
+        serializer = SuggestionSerializer(suggestions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK) 
+    
+
+class SuggestionVideoView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk, id):
         try:
-            suggestion = Suggestion.objects.get(pk=pk)
+            suggestion = Suggestion.objects.get(id=id, category__id=pk)  # Correct model and query
         except Suggestion.DoesNotExist:
             raise NotFound("Suggestion not found")
         
+        # Increment view count for the suggestion
         suggestion.view_count += 1
         suggestion.save()
 
+        # Serialize the suggestion and return it
         serializer = SuggestionSerializer(suggestion)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
+class PopularSuggestionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve the most popular suggestion."""
+        try:
+            popular_suggestion = Suggestion.objects.order_by('-view_count')[:10]
+            if not popular_suggestion:
+                return Response({"detail": "No suggestions available."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = SuggestionSerializer(popular_suggestion, many = True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+class RecentSuggestionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve the most recent suggestion."""
+        try:
+            recent_suggestion = Suggestion.objects.order_by('-created_at')[:10]
+            if not recent_suggestion:
+                return Response({"detail": "No suggestions available."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = SuggestionSerializer(recent_suggestion, many = True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

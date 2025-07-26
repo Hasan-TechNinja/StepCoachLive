@@ -53,6 +53,9 @@ urlpatterns = [
     
     path('suggestions/', views.SuggestionLiarView.as_view(), name='suggestions'),
     path('suggestions/<int:pk>', views.SuggestionDetailsView.as_view(), name='suggestions'),
+    path('suggestions/<int:pk>/<int:id>', views.SuggestionVideoView.as_view(), name='suggestion-categories'),
+    path('suggestions-popular/', views.PopularSuggestionView.as_view(), name='suggestion-categories'),
+    path('suggestion-recent/', views.RecentSuggestionView.as_view(), name='suggestion-categories'),
 ]
 
 # Static files handling (e.g., media files)
