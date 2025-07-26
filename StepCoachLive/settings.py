@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-y69v%wn4xeb(h3=0+m45+l(5ozzau+9!4b)zh=3$$#0hbcg45w
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -150,6 +150,10 @@ REST_FRAMEWORK = {
     )
 
 }
+
+
+OPENAI_API_KEY = config("OPENAI_API_KEY")
+
 
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")
 

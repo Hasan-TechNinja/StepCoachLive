@@ -219,3 +219,12 @@ class JournalEntry(models.Model):
 
     def __str__(self):
         return f"Journal Entry by {self.user.email} on {self.created_at.strftime('%Y-%m-%d')}"
+    
+
+class Quote(models.Model):
+    date = models.DateField(auto_now_add=True)
+    text = models.TextField()
+    author = models.CharField(max_length=255)
+
+    def __str__(self):
+        return f"{self.text} — {self.author}"

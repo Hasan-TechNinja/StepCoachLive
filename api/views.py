@@ -10,9 +10,11 @@ from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
+import datetime
+import openai
 
-from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry
-from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer
+from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote
+from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -939,3 +941,51 @@ class JournalEntryDetailView(APIView):
             return Response({"detail": "Journal entry deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
         except JournalEntry.DoesNotExist:
             return Response({"detail": "Journal entry not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+class DailyInspirationAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        # Simulate multiple quotes (you can customize prompt & model)
+        prompt = (
+            "Give me 4 short inspirational quotes with the author names."
+        )
+        openai.api_key = settings.OPENAI_API_KEY 
+
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant providing motivational quotes."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        quotes_text = response.choices[0].message['content']
+        # Optional: Use regex or parsing to format the quotes
+        # Example parsing (assuming formatted output):
+        quotes = [
+            {
+                "date": datetime.date.today(),
+                "text": "\"The only way to do great work is to love what you do.\"",
+                "author": "Steve Jobs"
+            },
+            {
+                "date": datetime.date.today(),
+                "text": "\"Believe you can and you're halfway there.\"",
+                "author": "Theodore Roosevelt"
+            },
+            {
+                "date": datetime.date.today(),
+                "text": "\"Success is not final, failure is not fatal: it is the courage to continue that counts.\"",
+                "author": "Winston Churchill"
+            },
+            {
+                "date": datetime.date.today(),
+                "text": "\"The future belongs to those who believe in the beauty of their dreams.\"",
+                "author": "Eleanor Roosevelt"
+            }
+        ]
+
+        return Response(quotes)
