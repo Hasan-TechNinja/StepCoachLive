@@ -11,8 +11,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 
-from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption
-from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer
+from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry
+from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -881,3 +881,24 @@ class RestartTimerView(APIView):
             return Response({"message": "Timer restarted", "elapsed_time": timer.get_elapsed_time()}, status=status.HTTP_200_OK)
         except Timer.DoesNotExist:
             return Response({"error": "Timer not found for this user"}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+class JournalEntryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve all journal entries for the authenticated user."""
+        entries = JournalEntry.objects.filter(user=request.user).order_by('-created_at')
+        serializer = JournalEntrySerializer(entries, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """Create a new journal entry."""
+        serializer = JournalEntrySerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

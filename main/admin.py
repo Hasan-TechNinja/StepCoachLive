@@ -139,3 +139,10 @@ class MilestoneOptionAdmin(admin.ModelAdmin):
     )
 
 admin.site.register(MilestoneOption, MilestoneOptionAdmin)
+
+
+class JournalEntryAdmin(admin.ModelAdmin):
+    list_display = ('user', 'title', 'content', 'created_at', 'updated_at')
+    search_fields = ('user__email', 'title')
+    list_filter = ('created_at', 'updated_at')  
+admin.site.register(JournalEntry, JournalEntryAdmin)

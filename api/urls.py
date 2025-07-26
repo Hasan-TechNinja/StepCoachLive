@@ -45,7 +45,9 @@ urlpatterns = [
     path('trigger-text/', views.TriggerTextView.as_view()),
     path('improveQA/', views.ImproveQuestionAnswerView.as_view()),
     path('milestoneSA/', views.MilestoneQuestionAnswerView.as_view()),
-    path('onboarding/', views.OnboardingView.as_view(), name='onboarding')
+    path('onboarding/', views.OnboardingView.as_view(), name='onboarding'),
+
+    path('journals/', views.JournalEntryView.as_view(), name='journal-entries'),
 ]
 
 # Static files handling (e.g., media files)
