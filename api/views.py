@@ -1,3 +1,4 @@
+import random
 import stripe
 from tokenize import TokenError
 from django.shortcuts import render
@@ -13,6 +14,7 @@ from django.contrib.auth import authenticate, login
 import datetime
 import openai
 from rest_framework.exceptions import NotFound
+from django.core.mail import send_mail
 
 from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory
 from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer
@@ -41,9 +43,46 @@ class RegisterView(APIView):
             refresh = RefreshToken.for_user(user)
             access_token = refresh.access_token
 
-            return Response({'access': str(access_token)}, status=status.HTTP_201_CREATED)
+            return Response({'refresh': str(refresh)}, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class ResendVerificationCodeView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+
+        if not email:
+            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+
+            if user.is_active:
+                return Response({"message": "User is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Delete old code if exists
+            EmailVerification.objects.filter(user=user).delete()
+
+            # Generate new code
+            code = str(random.randint(1000, 9999))
+            EmailVerification.objects.create(user=user, code=code)
+
+            send_mail(
+                'Your New Verification Code',
+                f'Your new verification code is {code}',
+                'noreply@example.com',
+                [email],
+                fail_silently=False
+            )
+
+            return Response({"message": "A new verification code has been sent to your email."}, status=status.HTTP_200_OK)
+
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
   
 
 class VerifyEmailView(APIView):
@@ -76,7 +115,7 @@ class VerifyEmailView(APIView):
 
                 return Response({
                     'message': 'Email verified successfully and user logged in.',
-                    # 'access': str(access_token),
+                    'access': str(access_token),
                     'refresh': str(refresh)
                 }, status=status.HTTP_200_OK)
 
