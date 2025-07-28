@@ -170,3 +170,11 @@ class SuggestionAdmin(admin.ModelAdmin):
     def text_short(self, obj):
         return obj.text[:50] + '...' if len(obj.text) > 50 else obj.text
     text_short.short_description = 'Text Preview'
+
+
+
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'user', 'title', 'message', 'is_read', 'created_at'
+    )
+admin.site.register(Notification, NotificationAdmin)    
