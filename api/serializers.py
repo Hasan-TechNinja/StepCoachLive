@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
+from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification, MoneySaved
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -428,3 +428,16 @@ class NotificationSerializer(serializers.ModelSerializer):
     def get_time_ago(self, obj):
         from django.utils.timesince import timesince
         return timesince(obj.created_at) + " ago"
+
+
+class MoneySavedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MoneySaved
+        fields = ['user', 'daily_saving_amount', 'target_days', 'goal_amount', 'start_date']
+
+
+
+class RecoveryMilestoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RecoveryMilestone
+        fields = ['user', 'milestone_name', 'target_date', 'completed']

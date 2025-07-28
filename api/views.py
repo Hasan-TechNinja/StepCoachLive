@@ -16,8 +16,8 @@ import openai
 from rest_framework.exceptions import NotFound
 from django.core.mail import send_mail
 
-from main.models import DayPerWeek, EmailVerification, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
-from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, OnboardingDataSerializer, PasswordVerifySerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer, NotificationSerializer
+from main.models import DayPerWeek, EmailVerification, MoneySaved, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
+from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, MoneySavedSerializer, OnboardingDataSerializer, PasswordVerifySerializer, RecoveryMilestoneSerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer, NotificationSerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -31,11 +31,40 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 
 # Create your views here.
-
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
+
     def post(self, request):
+        email = request.data.get('email')
+        
+        existing_user = User.objects.filter(email=email).first()
+        
+        if existing_user:
+            # If the user exists but is not active, resend the verification code
+            if not existing_user.is_active:
+                # Delete any previous OTP code (if exists)
+                EmailVerification.objects.filter(user=existing_user).delete()
+
+                # Generate a new verification code
+                code = str(random.randint(1000, 9999))
+                EmailVerification.objects.create(user=existing_user, code=code)
+
+                send_mail(
+                    'Your New Verification Code',
+                    f'Your new verification code is {code}',
+                    'noreply@example.com',
+                    [email],
+                    fail_silently=False
+                )
+
+                return Response({"message": "A new verification code has been sent to your email."}, status=status.HTTP_200_OK)
+            
+            # If the user is active, inform that email is already in use
+            return Response({"error": "This email is already in use by an active account."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # If the email does not exist, proceed with the registration process
         serializer = RegistrationSerializer(data=request.data)
+        
         if serializer.is_valid():
             user = serializer.save()
 
@@ -43,16 +72,17 @@ class RegisterView(APIView):
             refresh = RefreshToken.for_user(user)
             access_token = refresh.access_token
 
+            # Send a notification about successful registration
             Notification.objects.create(
-            user=user,
-            title="Registration Successful",
-            message="Welcome to One StepCoach! Your account has been created successfully.",
-        )
-
+                user=user,
+                title="Registration Successful",
+                message="Welcome to One StepCoach! Your account has been created successfully.",
+            )
 
             return Response({'refresh': str(refresh)}, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     
 
 class ResendVerificationCodeView(APIView):
@@ -1126,3 +1156,65 @@ class MarkNotificationsReadView(APIView):
     def post(self, request):
         Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
         return Response({"message": "All notifications marked as read."})
+
+
+
+class MoneySavedView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        money_saved = MoneySaved.objects.filter(user=user)
+
+        if not money_saved:
+            return Response({"detail": "No savings data found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize the data and add the username manually
+        serialized_data = MoneySavedSerializer(money_saved, many=True).data
+
+        # Add the username field to the serialized data
+        for item in serialized_data:
+            item["username"] = user.username  # Add the username to each item in the list
+
+        return Response(serialized_data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user
+        serializer = MoneySavedSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save(user=user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    
+
+class RecoveryMilestoneView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        milestones = RecoveryMilestone.objects.filter(user=user)
+
+        if not milestones:
+            return Response({"detail": "No recovery milestones found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize the data and add the username manually
+        serialized_data = RecoveryMilestoneSerializer(milestones, many=True).data
+
+        # Add the username field to the serialized data
+        for item in serialized_data:
+            item["username"] = user.username  # Add the username to each item in the list
+
+        return Response(serialized_data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user
+        serializer = RecoveryMilestoneSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save(user=user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

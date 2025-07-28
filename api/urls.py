@@ -59,6 +59,8 @@ urlpatterns = [
     path('suggestion-recent/', views.RecentSuggestionView.as_view(), name='suggestion-categories'),
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),
     path('notifications/mark-read/', views.MarkNotificationsReadView.as_view(), name='notifications-mark-read'),
+    path('money-saved/', views.MoneySavedView.as_view(), name='money-saved'),
+    path('recovery-milestones/', views.RecoveryMilestoneView.as_view(), name='recovery-milestones'),
 ]
 
 # Static files handling (e.g., media files)

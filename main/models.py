@@ -260,3 +260,24 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.email}: {self.title}"
+    
+
+class MoneySaved(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    daily_saving_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    target_days = models.IntegerField(choices=[(30, "30 Days"), (60, "60 Days"), (90, "90 Days")])
+    goal_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    start_date = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s saving goal for {self.target_days} days"
+    
+
+class RecoveryMilestone(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    milestone_name = models.CharField(max_length=100)
+    target_date = models.DateField()
+    completed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.milestone_name}"
