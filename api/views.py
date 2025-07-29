@@ -15,8 +15,9 @@ import datetime
 import openai
 from rest_framework.exceptions import NotFound
 from django.core.mail import send_mail
+from django.contrib.auth.hashers import make_password
 
-from main.models import DayPerWeek, EmailVerification, MoneySaved, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
+from main.models import DayPerWeek, EmailVerification, MoneySaved, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
 from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, MoneySavedSerializer, OnboardingDataSerializer, PasswordVerifySerializer, RecoveryMilestoneSerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TargetGoalSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer, NotificationSerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
@@ -199,11 +200,35 @@ class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        serializer = PasswordResetRequestSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({'detail': 'Password reset code sent.'}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        email = request.data.get('email')
+
+        if not email:
+            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+
+            if not user.is_active:
+                return Response({"error": "User is not active."}, status=status.HTTP_400_BAD_REQUEST)
+
+            PasswordResetCode.objects.filter(user=user).delete()
+
+            code = str(random.randint(1000, 9999))
+
+            PasswordResetCode.objects.create(user=user, code=code)
+
+            send_mail(
+                'Your Password Reset Code',
+                f'Your password reset code is {code}',
+                'noreply@example.com',
+                [email],
+                fail_silently=False
+            )
+
+            return Response({"message": "A password reset code has been sent to your email."}, status=status.HTTP_200_OK)
+
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class PasswordResetConfirmView(APIView):
@@ -211,10 +236,32 @@ class PasswordResetConfirmView(APIView):
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
+
         if serializer.is_valid():
-            serializer.save()
-            return Response({'detail': 'Password has been reset.'}, status=status.HTTP_200_OK)
+            email = serializer.validated_data['email']
+            code = serializer.validated_data['code']
+            new_password = serializer.validated_data['new_password']
+
+            try:
+                user = User.objects.get(email=email)
+
+                password_reset = PasswordResetCode.objects.filter(user=user, code=code).first()
+
+                if not password_reset:
+                    return Response({"error": "Invalid or expired reset code."}, status=status.HTTP_400_BAD_REQUEST)
+
+                user.password = make_password(new_password)
+                user.save()
+
+                password_reset.delete()
+
+                return Response({'detail': 'Password has been reset.'}, status=status.HTTP_200_OK)
+
+            except User.DoesNotExist:
+                return Response({"error": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
     
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
