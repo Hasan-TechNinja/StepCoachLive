@@ -181,11 +181,11 @@ admin.site.register(Notification, NotificationAdmin)
 
 
 
-class MoneySavedAdmin(admin.ModelAdmin):
-    list_display = (
-        'id', 'user', 'daily_saving_amount', 'target_days', 'goal_amount', 'start_date'
-    )
-admin.site.register(MoneySaved, MoneySavedAdmin)
+# class MoneySavedAdmin(admin.ModelAdmin):
+#     list_display = (
+#         'id', 'user', 'daily_saving_amount', 'target_days', 'goal_amount', 'start_date', 'saved_date'
+#     )
+# admin.site.register(MoneySaved, MoneySavedAdmin)
 
 
 class RecoveryMilestoneAdmin(admin.ModelAdmin):

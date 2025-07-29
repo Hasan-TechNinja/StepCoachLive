@@ -4,7 +4,7 @@ from tokenize import TokenError
 from django.shortcuts import render
 from django.contrib.auth.models import User
 from django.utils import timezone 
-from datetime import timedelta
+from datetime import timedelta, date
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
@@ -16,8 +16,8 @@ import openai
 from rest_framework.exceptions import NotFound
 from django.core.mail import send_mail
 
-from main.models import DayPerWeek, EmailVerification, MoneySaved, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
-from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, MoneySavedSerializer, OnboardingDataSerializer, PasswordVerifySerializer, RecoveryMilestoneSerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer, NotificationSerializer
+from main.models import DayPerWeek, EmailVerification, MoneySaved, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
+from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, MoneySavedSerializer, OnboardingDataSerializer, PasswordVerifySerializer, RecoveryMilestoneSerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TargetGoalSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer, NotificationSerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -1158,35 +1158,83 @@ class MarkNotificationsReadView(APIView):
         return Response({"message": "All notifications marked as read."})
 
 
-
-class MoneySavedView(APIView):
+class TargetGoalView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request):
-        user = request.user
-        money_saved = MoneySaved.objects.filter(user=user)
-
-        if not money_saved:
-            return Response({"detail": "No savings data found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Serialize the data and add the username manually
-        serialized_data = MoneySavedSerializer(money_saved, many=True).data
-
-        # Add the username field to the serialized data
-        for item in serialized_data:
-            item["username"] = user.username  # Add the username to each item in the list
-
-        return Response(serialized_data, status=status.HTTP_200_OK)
-
     def post(self, request):
-        user = request.user
-        serializer = MoneySavedSerializer(data=request.data)
+        user = request.user  # Automatically fetch the logged-in user
+        
+        data = request.data.copy()
+        # Set the target month to the current month or provided by the user
+        if not data.get('target_month'):
+            data['target_month'] = date.today().replace(day=1)
+
+        # Automatically add the logged-in user to the data
+        data['user'] = user.id
+        
+        serializer = TargetGoalSerializer(data=data)
 
         if serializer.is_valid():
             serializer.save(user=user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+
+class MoneySavedView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = date.today()
+
+        # Calculate today's savings
+        today_savings = MoneySaved.total_savings(user, start_date=today, end_date=today)
+        
+        # Calculate weekly savings (from the beginning of the current week)
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        weekly_savings = MoneySaved.total_savings(user, start_date=week_start, end_date=week_end)
+
+        # Calculate monthly savings
+        month_start = today.replace(day=1)
+        month_end = today.replace(day=28) + timedelta(days=4)
+        monthly_savings = MoneySaved.total_savings(user, start_date=month_start, end_date=month_end)
+
+        # Calculate target goal for the current month
+        target_goal = TargetGoal.objects.filter(user=user, target_month__month=today.month).first()
+        target_goal_amount = target_goal.goal_amount if target_goal else 0
+        percentage_goal = (monthly_savings / target_goal_amount) * 100 if target_goal_amount else 0
+
+        # Show the data
+        savings_data = {
+            'today_savings': today_savings,
+            'weekly_savings': weekly_savings,
+            'monthly_savings': monthly_savings,
+            'total_savings': MoneySaved.total_savings(user),
+            'percentage_goal': percentage_goal,
+            'target_goal_amount': target_goal_amount,
+        }
+
+        return Response(savings_data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user  # Automatically fetch the logged-in user
+        
+        # Remove user field from the incoming data and set the user from the request
+        data = request.data.copy()  # Make a copy of the incoming data to modify it
+        data['user'] = user.id  # Automatically set the user ID
+
+        serializer = MoneySavedSerializer(data=data)
+
+        if serializer.is_valid():
+            # Save the data with the authenticated user
+            serializer.save(user=user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
     
 

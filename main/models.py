@@ -265,12 +265,27 @@ class Notification(models.Model):
 class MoneySaved(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     daily_saving_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    target_days = models.IntegerField(choices=[(30, "30 Days"), (60, "60 Days"), (90, "90 Days")])
+    saved_date = models.DateField(auto_now_add=True, null=True)  # Record when the savings were made (date)
+
+    def __str__(self):
+        return f"{self.user.username}'s daily saving"
+
+    @classmethod
+    def total_savings(cls, user, start_date=None, end_date=None):
+        if start_date and end_date:
+            return cls.objects.filter(user=user, saved_date__range=[start_date, end_date]).aggregate(total=models.Sum('daily_saving_amount'))['total'] or 0
+        return cls.objects.filter(user=user).aggregate(total=models.Sum('daily_saving_amount'))['total'] or 0
+
+
+class TargetGoal(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     goal_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    target_month = models.DateField()
     start_date = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username}'s saving goal for {self.target_days} days"
+        return f"{self.user.username}'s target for {self.target_month.month}/{self.target_month.year}"
+    
     
 
 class RecoveryMilestone(models.Model):

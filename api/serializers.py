@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification, MoneySaved
+from main.models import AddictionOption, DayPerWeek, EmailVerification, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification, MoneySaved
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -433,7 +433,13 @@ class NotificationSerializer(serializers.ModelSerializer):
 class MoneySavedSerializer(serializers.ModelSerializer):
     class Meta:
         model = MoneySaved
-        fields = ['user', 'daily_saving_amount', 'target_days', 'goal_amount', 'start_date']
+        fields = ['user', 'daily_saving_amount', 'saved_date']
+
+
+class TargetGoalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TargetGoal
+        fields = ['user', 'goal_amount', 'target_month']
 
 
 
