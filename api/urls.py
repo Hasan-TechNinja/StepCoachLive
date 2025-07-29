@@ -39,7 +39,7 @@ urlpatterns = [
     path('addictions/<int:pk>', views.AddictionDetailsView.as_view(), name='addiction'),
     # path('goals/', views.GoalSelectionView.as_view(), name='goal-selection'),
     # path('milestones/', views.MilestoneSelectionView.as_view(), name='milestone-selection'),
-    path('drinking-habits/', views.DrinkingHabitsView.as_view(), name='drinking-habits'),
+    path('/drinking-habits', views.DrinkingHabitsView.as_view(), name='drinking-habits'),
     path('triggers-text/', views.TriggersTextView.as_view(), name='triggers-text'),
     # path('day-per-week/', views.AddictionWeekView.as_view()),
     path('drinks-rate/', views.DrinksRateView.as_view()),

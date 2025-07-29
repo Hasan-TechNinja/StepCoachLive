@@ -318,12 +318,13 @@ class AddictionDetailsView(APIView):
         try:
             addiction = Addiction.objects.get(id=pk)
             addiction_options = AddictionOption.objects.filter(addiction=addiction)
-            addiction_type = addiction.addiction_type
 
+            # Serialize AddictionOptions related to the addiction
             addiction_options_serializer = AddictionOptionSerializer(addiction_options, many=True)
 
+            # Return Addiction type and its options
             response_data = {
-                'addiction_type': addiction_type,
+                'addiction_type': addiction.addiction_type,
                 'addiction_options': addiction_options_serializer.data
             }
 
@@ -331,33 +332,104 @@ class AddictionDetailsView(APIView):
         except Addiction.DoesNotExist:
             return Response({"detail": "Addiction not found"}, status=status.HTTP_404_NOT_FOUND)
 
-
     def post(self, request, pk):
+        user = request.user
+
+        # Retrieve the Addiction object or create if it doesn't exist
         try:
             addiction = Addiction.objects.get(id=pk)
         except Addiction.DoesNotExist:
             return Response({"detail": "Addiction not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Ensure the 'addiction' field is included in the incoming data, or set it manually
-        request.data['addiction'] = addiction.id
+        # Retrieve or create OnboardingData for the authenticated user
+        onboarding, created = OnboardingData.objects.get_or_create(user=user)
 
-        # Initialize the serializer
-        serializer = AddictionOptionSerializer(data=request.data)
+        # Set the addiction field in OnboardingData
+        onboarding.addiction = addiction
 
-        if serializer.is_valid():
-            # Create the AddictionOption, associating it with the correct Addiction
-            addiction_option = serializer.save(addiction=addiction)
+        # Get the addiction options from the request data (IDs of the addiction options)
+        addiction_option_ids = request.data.get('addiction_option', [])
+        if addiction_option_ids:
+            # Fetch AddictionOption objects based on the provided IDs
+            addiction_options = AddictionOption.objects.filter(id__in=addiction_option_ids)
+            
+            # Ensure the provided options exist
+            if addiction_options.count() != len(addiction_option_ids):
+                return Response({"detail": "One or more addiction options are invalid."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Create or update the OnboardingData
-            onboarding, created = OnboardingData.objects.get_or_create(
-                addiction=addiction
-            )
-            onboarding.addiction_option.add(addiction_option)
-            onboarding.save()
+            # Set the addiction options in OnboardingData (this will replace any existing options)
+            onboarding.addiction_option.set(addiction_options)
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Set additional fields in OnboardingData if provided
+        onboarding.days_per_week = request.data.get('days_per_week', 0)
+        onboarding.drinks_per_day = request.data.get('drinks_per_day', 0)
+        onboarding.trigger_text = request.data.get('trigger_text', '')
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Handle Improvement and Milestone related fields if provided
+        if 'improvement' in request.data:
+            try:
+                onboarding.improvement = ImproveQuestion.objects.get(id=request.data['improvement'])
+            except ImproveQuestion.DoesNotExist:
+                return Response({"detail": "Improvement question not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if 'milestone' in request.data:
+            try:
+                onboarding.milestone = MilestoneQuestion.objects.get(id=request.data['milestone'])
+            except MilestoneQuestion.DoesNotExist:
+                return Response({"detail": "Milestone question not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Handle Improvement and Milestone Options (IDs of the options)
+        if 'improvement_option' in request.data:
+            improvement_option_ids = request.data['improvement_option']
+            if improvement_option_ids:
+                # Fetch ImproveQuestionOption objects based on the IDs provided
+                improvement_options = ImproveQuestionOption.objects.filter(id__in=improvement_option_ids)
+                # Add options to existing improvement options (without replacing)
+                onboarding.improvement_option.add(*improvement_options)
+
+        if 'milestone_option' in request.data:
+            milestone_option_ids = request.data['milestone_option']
+            if milestone_option_ids:
+                milestone_options = MilestoneOption.objects.filter(id__in=milestone_option_ids)
+                onboarding.milestone_option.set(milestone_options)
+
+        # Save OnboardingData
+        onboarding.save()
+
+        # Prepare the response
+        response_data = {
+            "detail": "Onboarding data successfully saved.",
+            "onboarding_data": {
+                "addiction": {
+                    "id": onboarding.addiction.id,
+                    "addiction_type": onboarding.addiction.addiction_type
+                },
+                "addiction_option": [
+                    {"id": option.id, "name": option.name} for option in onboarding.addiction_option.all()
+                ],
+                "days_per_week": onboarding.days_per_week,
+                "drinks_per_day": onboarding.drinks_per_day,
+                "trigger_text": onboarding.trigger_text,
+                "improvement": {
+                    "id": onboarding.improvement.id if onboarding.improvement else None,
+                    "question": onboarding.improvement.text if onboarding.improvement else None
+                },
+                "milestone": {
+                    "id": onboarding.milestone.id if onboarding.milestone else None,
+                    "question": onboarding.milestone.text if onboarding.milestone else None
+                },
+                "improvement_option": [
+                    {"id": option.id, "text": option.text} for option in onboarding.improvement_option.all()
+                ],
+                "milestone_option": [
+                    {"id": option.id, "text": option.text} for option in onboarding.milestone_option.all()
+                ],
+                "completed": onboarding.completed
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+    
 
 
 
@@ -367,10 +439,12 @@ class DrinksRateView(APIView):
     def get(self, request):
         user = request.user
         
-        try:
-            onboarding_data = OnboardingData.objects.get(user=user)
-        except OnboardingData.DoesNotExist:
-            return Response({"detail": "Onboarding data not found"}, status=status.HTTP_404_NOT_FOUND)
+        # Attempt to get the OnboardingData, otherwise create it if missing
+        onboarding_data, created = OnboardingData.objects.get_or_create(user=user)
+        
+        # If onboarding data was created, you may choose to return a different status or response
+        if created:
+            return Response({"detail": "Onboarding data created with default values."}, status=status.HTTP_201_CREATED)
 
         day_serializer = DayPerWeekSerializer(onboarding_data)
         drink_serializer = DrinksPerDaySerializer(onboarding_data)
@@ -383,11 +457,10 @@ class DrinksRateView(APIView):
     def post(self, request):
         user = request.user
         
-        try:
-            onboarding_data = OnboardingData.objects.get(user=user)
-        except OnboardingData.DoesNotExist:
-            return Response({"detail": "Onboarding data not found"}, status=status.HTTP_404_NOT_FOUND)
+        # Attempt to get the OnboardingData, otherwise create it if missing
+        onboarding_data, created = OnboardingData.objects.get_or_create(user=user)
 
+        # Handle the case when the user is posting data
         drinks_per_day = request.data.get('drinks_per_day')
         days_per_week = request.data.get('days_per_week')
 
@@ -406,7 +479,6 @@ class DrinksRateView(APIView):
             'days_per_week': day_serializer.data,
             'drinks_per_day': drink_serializer.data
         }, status=status.HTTP_200_OK)
-
 
 
 class TriggerTextView(APIView):
@@ -488,31 +560,59 @@ class ImproveQuestionAnswerView(APIView):
         return Response(context, status=status.HTTP_200_OK)
     
 
-    def post(self, request):
+    def post(self, request, pk):
         user = request.user
 
-        improvement_options_data = request.data.get('improvement_options', [])
-
-        if not improvement_options_data:
-            return Response({"detail": "Improvement options are required."}, status=status.HTTP_400_BAD_REQUEST)
-
+        # Retrieve the Addiction object, or return an error if it doesn't exist
         try:
-            improvement_options = ImproveQuestionOption.objects.filter(id__in=improvement_options_data)
-        except ImproveQuestionOption.DoesNotExist:
-            return Response({"detail": "One or more improvement options are invalid."}, status=status.HTTP_400_BAD_REQUEST)
+            addiction = Addiction.objects.get(id=pk)
+        except Addiction.DoesNotExist:
+            return Response({"detail": "Addiction not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        improvement_question = improvement_options.first().question
+        # Retrieve or create OnboardingData for the authenticated user
+        onboarding, created = OnboardingData.objects.get_or_create(user=user)
 
-        if len(improvement_options) > 3:
-            return Response({"detail": "You can select a maximum of 3 improvement options."}, status=status.HTTP_400_BAD_REQUEST)
+        # Set the addiction field in OnboardingData
+        onboarding.addiction = addiction
 
-        onboarding_data, created = OnboardingData.objects.get_or_create(user=user)
+        # Get the addiction options from the request data (IDs of the addiction options)
+        addiction_option_ids = request.data.get('addiction_option', [])
+        
+        # Check if addiction_option_ids is a list and convert it to integers if needed
+        if isinstance(addiction_option_ids, str):  # Handle if the IDs come as a comma-separated string
+            addiction_option_ids = addiction_option_ids.split(",")  # Convert to list of strings
+            addiction_option_ids = [int(id.strip()) for id in addiction_option_ids]  # Convert to list of integers
 
-        onboarding_data.improvement = improvement_question
-        onboarding_data.improvement_option.set(improvement_options)
-        onboarding_data.save()
+        if addiction_option_ids:
+            # Fetch AddictionOption objects based on the provided IDs
+            addiction_options = AddictionOption.objects.filter(id__in=addiction_option_ids)
 
-        return Response({"detail": "Improvement data saved successfully."}, status=status.HTTP_201_CREATED)
+            # If there are any invalid options, return an error
+            if addiction_options.count() != len(addiction_option_ids):
+                return Response({"detail": "One or more addiction options are invalid."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Set the addiction options in OnboardingData (this will replace any existing options)
+            onboarding.addiction_option.set(addiction_options)
+
+        # Save the OnboardingData
+        onboarding.save()
+
+        # Prepare the response data, including both ID and name for addiction options
+        response_data = {
+            "detail": "Onboarding data successfully saved.",
+            "onboarding_data": {
+                "addiction": {
+                    "id": onboarding.addiction.id,
+                    "addiction_type": onboarding.addiction.addiction_type
+                },
+                "addiction_option": [
+                    {"id": option.id, "name": option.name} for option in onboarding.addiction_option.all()
+                ],
+                "completed": onboarding.completed
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class MilestoneQuestionAnswerView(APIView):
