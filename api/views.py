@@ -1477,7 +1477,14 @@ class ChatView(APIView):
         """
         # Deserialize incoming message (user message only)
         serializer = MessageSerializer(data=request.data)
-
+        user = request.user
+        if user.first_name:
+            user = user.first_name
+        elif user.username:
+            user = user.username    
+        else:   
+            user = request.user
+            
         if serializer.is_valid():
             # Extract the user message
             user_message = serializer.validated_data['content']
@@ -1489,7 +1496,7 @@ class ChatView(APIView):
             # Save the user message to the database with 'role' as 'user'
             user_message_instance = Message.objects.create(
                 conversation=conversation,
-                role="user",  # The user message has the role 'user'
+                role=user,  # The user message has the role 'user'
                 content=user_message,  # The content of the user message
             )
 
