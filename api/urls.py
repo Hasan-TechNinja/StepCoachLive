@@ -62,6 +62,8 @@ urlpatterns = [
     path('target-goal/', views.TargetGoalView.as_view(), name='target-goal'),
     path('money-saved/', views.MoneySavedView.as_view(), name='money-saved'),
     path('recovery-milestones/', views.RecoveryMilestoneView.as_view(), name='recovery-milestones'),
+    path('view-milestones/', views.ViewMilestonesAPIView.as_view(), name='view-milestones'),
+    path('user-milestones/create/', views.CompleteMilestoneAPIView.as_view(), name='create-user-milestone'),
 ]
 
 # Static files handling (e.g., media files)

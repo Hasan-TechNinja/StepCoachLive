@@ -296,3 +296,14 @@ class RecoveryMilestone(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.milestone_name}"
+
+
+
+class MilestoneProgress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    milestone_question = models.ForeignKey(MilestoneQuestion, on_delete=models.CASCADE)
+    milestone_option = models.ForeignKey(MilestoneOption, on_delete=models.CASCADE)
+    completed_on = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Milestone Progress for {self.user.email} on {self.milestone_question.text}"

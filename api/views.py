@@ -17,8 +17,8 @@ from rest_framework.exceptions import NotFound
 from django.core.mail import send_mail
 from django.contrib.auth.hashers import make_password
 
-from main.models import DayPerWeek, EmailVerification, MoneySaved, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
-from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, MoneySavedSerializer, OnboardingDataSerializer, PasswordVerifySerializer, RecoveryMilestoneSerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TargetGoalSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer, NotificationSerializer
+from main.models import DayPerWeek, EmailVerification, MilestoneProgress, MoneySaved, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
+from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, MilestoneProgressSerializer, MoneySavedSerializer, OnboardingDataSerializer, PasswordVerifySerializer, RecoveryMilestoneSerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TargetGoalSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer, NotificationSerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework import status, permissions
@@ -1413,3 +1413,52 @@ class RecoveryMilestoneView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+class ViewMilestonesAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Retrieve all milestones progress related to the user
+        milestones_progress = MilestoneProgress.objects.filter(user=user)
+
+        if not milestones_progress:
+            return Response({"detail": "No milestones found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize the milestones progress data
+        serialized_data = MilestoneProgressSerializer(milestones_progress, many=True).data
+
+        # Add username to the data for clarity
+        for item in serialized_data:
+            item["username"] = user.username
+
+        return Response(serialized_data, status=status.HTTP_200_OK)
+    
+
+class CompleteMilestoneAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        milestone_question_id = request.data.get('milestone_question')
+        milestone_option_id = request.data.get('milestone_option')
+
+        try:
+            milestone_question = MilestoneQuestion.objects.get(id=milestone_question_id)
+            milestone_option = MilestoneOption.objects.get(id=milestone_option_id)
+
+            # Save the progress of the user
+            milestone_progress = MilestoneProgress.objects.create(
+                user=user,
+                milestone_question=milestone_question,
+                milestone_option=milestone_option
+            )
+
+            return Response({"detail": "Milestone marked as completed"}, status=status.HTTP_201_CREATED)
+        except MilestoneQuestion.DoesNotExist:
+            return Response({"error": "Milestone question not found"}, status=status.HTTP_404_NOT_FOUND)
+        except MilestoneOption.DoesNotExist:
+            return Response({"error": "Milestone option not found"}, status=status.HTTP_404_NOT_FOUND)
