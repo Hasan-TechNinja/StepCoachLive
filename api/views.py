@@ -1132,6 +1132,21 @@ class JournalEntryView(APIView):
     
 
 
+class FavoriteJournalEntriesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Retrieve all favorite journal entries for the authenticated user."""
+        # Filter favorite entries for the authenticated user and order by creation date
+        entries = JournalEntry.objects.filter(user=request.user, favorite=True).order_by('-created_at')
+        
+        # Serialize the entries
+        serializer = JournalEntrySerializer(entries, many=True)
+        
+        # Return the serialized data with HTTP 200 OK status
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class JournalEntryDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1484,7 +1499,7 @@ class ChatView(APIView):
             user = user.username    
         else:   
             user = request.user
-            
+
         if serializer.is_valid():
             # Extract the user message
             user_message = serializer.validated_data['content']

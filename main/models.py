@@ -216,6 +216,7 @@ class JournalEntry(models.Model):
     content = models.TextField(max_length=20000)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    favorite = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Journal Entry by {self.user.email} on {self.created_at.strftime('%Y-%m-%d')}"

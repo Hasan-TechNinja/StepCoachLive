@@ -49,6 +49,7 @@ urlpatterns = [
     path('onboarding/', views.OnboardingView.as_view(), name='onboarding'),
 
     path('journals/', views.JournalEntryView.as_view(), name='journal-entries'),
+    path('favorite-journals/', views.FavoriteJournalEntriesView.as_view(), name='favorite-journal-entries'),
     path('journals/<int:pk>/', views.JournalEntryDetailView.as_view(), name='journal-entry-detail'),
     path('daily/', views.DailyInspirationAPIView.as_view(), name='daily-inspiration'),
     
