@@ -307,3 +307,28 @@ class MilestoneProgress(models.Model):
 
     def __str__(self):
         return f"Milestone Progress for {self.user.email} on {self.milestone_question.text}"
+
+
+
+class Conversation(models.Model):
+    """
+    Represents a chat session between the user and the AI counselor.
+    """
+    user_id = models.CharField(max_length=255)  # Store the user's ID or identifier if needed
+    started_at = models.DateTimeField(auto_now_add=True)  # Track when the conversation started
+    last_updated = models.DateTimeField(auto_now=True)  # Track when the conversation was last updated
+
+    def __str__(self):
+        return f"Conversation with {self.user_id} started at {self.started_at}"
+
+class Message(models.Model):
+    """
+    Represents a single message in the conversation.
+    """
+    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
+    role = models.CharField(max_length=50, choices=[('user', 'User'), ('ai', 'AI')])  # User or AI
+    content = models.TextField()  # Message content
+    timestamp = models.DateTimeField(auto_now_add=True)  # Time when the message was sent
+
+    def __str__(self):
+        return f"{self.role} at {self.timestamp}: {self.content[:30]}"

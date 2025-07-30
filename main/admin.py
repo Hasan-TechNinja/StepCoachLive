@@ -194,3 +194,35 @@ class RecoveryMilestoneAdmin(admin.ModelAdmin):
     )
 
 admin.site.register(RecoveryMilestone, RecoveryMilestoneAdmin)
+
+
+class MessageInline(admin.TabularInline):
+    """
+    Allows for inline editing of messages within a conversation.
+    """
+    model = Message
+    extra = 1  # Add 1 empty form to create a new message inline
+    readonly_fields = ['role', 'content', 'timestamp']  # Make some fields read-only (optional)
+    can_delete = False  # Disable deleting messages from the inline form
+
+class ConversationAdmin(admin.ModelAdmin):
+    """
+    Admin interface for the Conversation model.
+    """
+    list_display = ('user_id', 'started_at', 'last_updated')  # Fields to display in the list view
+    search_fields = ('user_id',)  # Allow search by user_id
+    list_filter = ('started_at',)  # Add filters based on started_at
+    inlines = [MessageInline]  # Display messages inline within the conversation
+
+class MessageAdmin(admin.ModelAdmin):
+    """
+    Admin interface for the Message model.
+    """
+    list_display = ('role', 'content', 'timestamp', 'conversation')  # Fields to display in the list view
+    search_fields = ('content',)  # Allow search by content
+    list_filter = ('role',)  # Add filters based on role (user or ai)
+    readonly_fields = ('role', 'content', 'timestamp')  # Make some fields read-only (optional)
+
+# Register models with the admin site
+admin.site.register(Conversation, ConversationAdmin)
+admin.site.register(Message, MessageAdmin)

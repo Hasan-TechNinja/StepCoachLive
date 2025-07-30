@@ -64,6 +64,9 @@ urlpatterns = [
     path('recovery-milestones/', views.RecoveryMilestoneView.as_view(), name='recovery-milestones'),
     path('view-milestones/', views.ViewMilestonesAPIView.as_view(), name='view-milestones'),
     path('user-milestones/create/', views.CompleteMilestoneAPIView.as_view(), name='create-user-milestone'),
+
+    path('chat/', views.ChatView.as_view(), name='chat_api'),
+    path('conversation-history/', views.ConversationHistoryView.as_view(), name='conversation_history'),
 ]
 
 # Static files handling (e.g., media files)

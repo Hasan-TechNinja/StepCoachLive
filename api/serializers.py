@@ -9,7 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.contrib.auth import authenticate
 
-from main.models import AddictionOption, DayPerWeek, EmailVerification, MilestoneProgress, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification, MoneySaved
+from main.models import AddictionOption, Conversation, DayPerWeek, EmailVerification, Message, MilestoneProgress, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification, MoneySaved
 from subscription.models import SubscriptionPlan, UserSubscription
 
 from rest_framework.validators import UniqueValidator
@@ -454,3 +454,29 @@ class RecoveryMilestoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecoveryMilestone
         fields = ['user', 'milestone_name', 'target_date', 'completed']
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    # 'role' is set as read-only because it's determined automatically
+    role = serializers.ChoiceField(choices=[('user', 'User'), ('ai', 'AI')], read_only=True)
+    
+    # 'timestamp' is automatically set by the database, so it's read-only
+    timestamp = serializers.DateTimeField(read_only=True)
+    
+    # For the 'conversation' field, we use a `PrimaryKeyRelatedField` with read_only set to True
+    # but without providing a queryset (because it's automatically handled by the model)
+    conversation = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Message
+        fields = ['role', 'content', 'timestamp', 'conversation']
+    
+
+
+class ConversationSerializer(serializers.ModelSerializer):
+    # Serialize the related messages using MessageSerializer
+    messages = MessageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Conversation
+        fields = ['user_id', 'started_at', 'last_updated', 'messages'] 

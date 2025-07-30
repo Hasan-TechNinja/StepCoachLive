@@ -17,11 +17,12 @@ from rest_framework.exceptions import NotFound
 from django.core.mail import send_mail
 from django.contrib.auth.hashers import make_password
 
-from main.models import DayPerWeek, EmailVerification, MilestoneProgress, MoneySaved, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
-from api.serializers import DayPerWeekSerializer, DrinksPerDaySerializer, MilestoneProgressSerializer, MoneySavedSerializer, OnboardingDataSerializer, PasswordVerifySerializer, RecoveryMilestoneSerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TargetGoalSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer, NotificationSerializer
+from api.ai import AICounselor
+from main.models import Conversation, DayPerWeek, EmailVerification, Message, MilestoneProgress, MoneySaved, PasswordResetCode, Profile, Addiction, OnboardingData, ProgressQuestion, ProgressAnswer, ProgressResponse, RecoveryMilestone, Report, TargetGoal, Timer, PrivacyPolicy, TermsConditions, SupportContact, AddictionOption, ImproveQuestion, ImproveQuestionOption, MilestoneQuestion, MilestoneOption, JournalEntry, Quote, Suggestion, SuggestionCategory, Notification
+from api.serializers import ConversationSerializer, DayPerWeekSerializer, DrinksPerDaySerializer, MessageSerializer, MilestoneProgressSerializer, MoneySavedSerializer, OnboardingDataSerializer, PasswordVerifySerializer, RecoveryMilestoneSerializer, RegistrationSerializer, EmailTokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, ProfileSerializer, AddictionSerializer, SubscriptionPlanSerializer, TargetGoalSerializer, TimerSerializer, TriggerTextSerializer, UserSubscriptionSerializer, ProgressQuestionSerializer, ProgressAnswerSerializer, ProgressResponseSerializer, ProgressQuestionSerializer, ReportSerializer, PrivacyPolicySerializer, TermsConditionsSerializer, SupportContactSerializer, AddictionOptionSerializer, ImproveQuestionSerializer, ImproveQuestionOptionSerializer, MilestoneQuestionSerializer, MilestoneOptionSerializer, JournalEntrySerializer, QuoteSerializer, SuggestionSerializer, SuggestionCategorySerializer, NotificationSerializer
 from subscription.models import SubscriptionPlan, UserSubscription
 
-from rest_framework import status, permissions
+from rest_framework import status, permissions, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -1462,3 +1463,60 @@ class CompleteMilestoneAPIView(APIView):
             return Response({"error": "Milestone question not found"}, status=status.HTTP_404_NOT_FOUND)
         except MilestoneOption.DoesNotExist:
             return Response({"error": "Milestone option not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+# Initialize AI counselor instance
+counselor = AICounselor()
+
+class ChatView(APIView):
+    def post(self, request):
+        """
+        Handle chat messages, process them with the AI counselor, and return the response.
+        Save the conversation and messages to the database.
+        """
+        # Deserialize incoming message (user message only)
+        serializer = MessageSerializer(data=request.data)
+
+        if serializer.is_valid():
+            # Extract the user message
+            user_message = serializer.validated_data['content']
+
+            # Start or retrieve the conversation for the user (we'll use 'guest' if no authenticated user)
+            user_id = request.user.id if request.user.is_authenticated else "guest"
+            conversation, created = Conversation.objects.get_or_create(user_id=user_id)
+
+            # Save the user message to the database with 'role' as 'user'
+            user_message_instance = Message.objects.create(
+                conversation=conversation,
+                role="user",  # The user message has the role 'user'
+                content=user_message,  # The content of the user message
+            )
+
+            # Get the AI's response
+            ai_response = counselor.process_message(user_message)
+
+            # Save the AI response to the database with 'role' as 'ai'
+            ai_message_instance = Message.objects.create(
+                conversation=conversation,
+                role="ai",  # The AI message has the role 'ai'
+                content=ai_response,  # The content of the AI's response
+            )
+
+            # Return the AI's response to the user
+            return Response({"response": ai_response}, status=status.HTTP_200_OK)
+
+        # Return errors if serializer is invalid
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ConversationHistoryView(generics.ListAPIView):
+    """
+    List all conversations for a particular user.
+    """
+    serializer_class = ConversationSerializer
+
+    def get_queryset(self):
+        # Get the user ID from the authenticated user, or default to 'guest' if unauthenticated
+        user_id = self.request.user.id if self.request.user.is_authenticated else "guest"
+        # Return the conversations for the authenticated user or guest
+        return Conversation.objects.filter(user_id=user_id)
