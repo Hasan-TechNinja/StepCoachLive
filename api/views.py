@@ -1469,6 +1469,7 @@ class CompleteMilestoneAPIView(APIView):
 counselor = AICounselor()
 
 class ChatView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
     def post(self, request):
         """
         Handle chat messages, process them with the AI counselor, and return the response.
@@ -1510,6 +1511,7 @@ class ChatView(APIView):
 
 
 class ConversationHistoryView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
     """
     List all conversations for a particular user.
     """
