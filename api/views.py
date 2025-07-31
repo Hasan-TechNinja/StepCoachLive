@@ -350,15 +350,20 @@ class AddictionDetailsView(APIView):
 
         # Get the addiction options from the request data (IDs of the addiction options)
         addiction_option_ids = request.data.get('addiction_option', [])
+        
+        # Check if more than one addiction option is provided
+        if len(addiction_option_ids) > 1:
+            return Response({"detail": "You can only select one addiction option at a time."}, status=status.HTTP_400_BAD_REQUEST)
+
         if addiction_option_ids:
-            # Fetch AddictionOption objects based on the provided IDs
+            # Fetch AddictionOption objects based on the provided ID
             addiction_options = AddictionOption.objects.filter(id__in=addiction_option_ids)
             
-            # Ensure the provided options exist
+            # Ensure the provided option exists
             if addiction_options.count() != len(addiction_option_ids):
                 return Response({"detail": "One or more addiction options are invalid."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Set the addiction options in OnboardingData (this will replace any existing options)
+            # Set the addiction option in OnboardingData (this will replace any existing option)
             onboarding.addiction_option.set(addiction_options)
 
         # Set additional fields in OnboardingData if provided
