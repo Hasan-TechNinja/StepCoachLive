@@ -552,11 +552,10 @@ class ImproveQuestionAnswerView(APIView):
         ]
 
         return Response({
-            'question': {
-                'text': question.text
-            },
+            'question': question.text,
             'options': formatted_options
         }, status=status.HTTP_200_OK)
+
 
     def post(self, request):
         user = request.user
@@ -607,34 +606,27 @@ class MilestoneQuestionAnswerView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        question = MilestoneQuestion.objects.first()
+        if not question:
+            return Response({"detail": "No milestone question found."}, status=status.HTTP_404_NOT_FOUND)
 
-        questions = MilestoneQuestion.objects.all()
-        questions_data = []
-
-        for question in questions:
-
-            options = MilestoneOption.objects.filter(question=question)
-            
-            formatted_options = []
-            for option in options:
-                formatted_options.append({
-                    'option': option.id,
-                    'text': option.text
-                })
-            
-            question_data = {
-                'question': {
-                    'text': question.text
-                },
-                'options': formatted_options 
-            }
-            questions_data.append(question_data)
-
-        context = {
-            'questions': questions_data,
+        options = MilestoneOption.objects.filter(question=question)
+        
+        formatted_options = [
+            {
+                'option': option.id,
+                'text': option.text
+            } for option in options
+        ]
+        
+        response_data = {
+            'question': question.text,
+            'options': formatted_options
         }
 
-        return Response(context, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
 
     def post(self, request):
         user = request.user
