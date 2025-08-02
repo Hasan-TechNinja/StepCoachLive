@@ -45,7 +45,7 @@ admin.site.register(OnboardingData, OnboardingDataAdmin)
 
 class ProgressAnswerInline(admin.TabularInline):
     model = ProgressAnswer
-    extra = 1
+    extra = 5
 
 class ProgressQuestionAdmin(admin.ModelAdmin):
     list_display = ('id', 'text', 'is_active')
@@ -180,12 +180,6 @@ class NotificationAdmin(admin.ModelAdmin):
 admin.site.register(Notification, NotificationAdmin)    
 
 
-
-# class MoneySavedAdmin(admin.ModelAdmin):
-#     list_display = (
-#         'id', 'user', 'daily_saving_amount', 'target_days', 'goal_amount', 'start_date', 'saved_date'
-#     )
-# admin.site.register(MoneySaved, MoneySavedAdmin)
 
 
 class RecoveryMilestoneAdmin(admin.ModelAdmin):

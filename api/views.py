@@ -325,6 +325,7 @@ class AddictionDetailsView(APIView):
 
             # Return Addiction type and its options
             response_data = {
+                'addiction_id': addiction.id,
                 'addiction_type': addiction.addiction_type,
                 'addiction_options': addiction_options_serializer.data
             }
@@ -531,94 +532,75 @@ class TriggerTextView(APIView):
         else:
             # If `trigger_text` is not provided, return a bad request response
             return Response({"detail": "'trigger_text' field is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+
 
 
 class ImproveQuestionAnswerView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        questions = ImproveQuestion.objects.all()
-        questions_data = []
+        # Get the first question only for simplicity
+        question = ImproveQuestion.objects.first()
+        if not question:
+            return Response({"detail": "No improvement question found."}, status=status.HTTP_404_NOT_FOUND)
 
-        for question in questions:
-            options = ImproveQuestionOption.objects.filter(question=question)
-            
-            formatted_options = []
-            for option in options:
-                formatted_options.append({
-                    'option': option.id,
-                    'text': option.text
-                })
-            
-            question_data = {
-                'question': {
-                    'text': question.text
-                },
-                'options': formatted_options
-            }
-            questions_data.append(question_data)
+        options = ImproveQuestionOption.objects.filter(question=question)
+        formatted_options = [
+            {'option': option.id, 'text': option.text}
+            for option in options
+        ]
 
-        context = {
-            'questions': questions_data,
-        }
+        return Response({
+            'question': {
+                'text': question.text
+            },
+            'options': formatted_options
+        }, status=status.HTTP_200_OK)
 
-        return Response(context, status=status.HTTP_200_OK)
-    
-
-    def post(self, request, pk):
+    def post(self, request):
         user = request.user
+        option_ids = request.data.get("improvement_option", [])
 
-        # Retrieve the Addiction object, or return an error if it doesn't exist
-        try:
-            addiction = Addiction.objects.get(id=pk)
-        except Addiction.DoesNotExist:
-            return Response({"detail": "Addiction not found."}, status=status.HTTP_404_NOT_FOUND)
+        if isinstance(option_ids, str):
+            option_ids = option_ids.split(",")
+            option_ids = [int(i.strip()) for i in option_ids]
 
-        # Retrieve or create OnboardingData for the authenticated user
-        onboarding, created = OnboardingData.objects.get_or_create(user=user)
+        if not isinstance(option_ids, list) or not all(isinstance(i, int) for i in option_ids):
+            return Response({"detail": "Improvement option IDs must be a list of integers."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Set the addiction field in OnboardingData
-        onboarding.addiction = addiction
+        # Fetch options from DB
+        selected_options = ImproveQuestionOption.objects.filter(id__in=option_ids)
 
-        # Get the addiction options from the request data (IDs of the addiction options)
-        addiction_option_ids = request.data.get('addiction_option', [])
-        
-        # Check if addiction_option_ids is a list and convert it to integers if needed
-        if isinstance(addiction_option_ids, str):  # Handle if the IDs come as a comma-separated string
-            addiction_option_ids = addiction_option_ids.split(",")  # Convert to list of strings
-            addiction_option_ids = [int(id.strip()) for id in addiction_option_ids]  # Convert to list of integers
+        if selected_options.count() != len(option_ids):
+            return Response({"detail": "One or more improvement options are invalid."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if addiction_option_ids:
-            # Fetch AddictionOption objects based on the provided IDs
-            addiction_options = AddictionOption.objects.filter(id__in=addiction_option_ids)
+        # Get or create onboarding data
+        onboarding, _ = OnboardingData.objects.get_or_create(user=user)
 
-            # If there are any invalid options, return an error
-            if addiction_options.count() != len(addiction_option_ids):
-                return Response({"detail": "One or more addiction options are invalid."}, status=status.HTTP_400_BAD_REQUEST)
+        # All selected options should be from the same question
+        question = selected_options.first().question if selected_options else None
 
-            # Set the addiction options in OnboardingData (this will replace any existing options)
-            onboarding.addiction_option.set(addiction_options)
+        if not question:
+            return Response({"detail": "No associated improvement question found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Save the OnboardingData
+        # Save improvement and selected options
+        onboarding.improvement = question
+        onboarding.improvement_option.set(selected_options)
         onboarding.save()
 
-        # Prepare the response data, including both ID and name for addiction options
+        # Format response
         response_data = {
-            "detail": "Onboarding data successfully saved.",
-            "onboarding_data": {
-                "addiction": {
-                    "id": onboarding.addiction.id,
-                    "addiction_type": onboarding.addiction.addiction_type
-                },
-                "addiction_option": [
-                    {"id": option.id, "name": option.name} for option in onboarding.addiction_option.all()
-                ],
-                "completed": onboarding.completed
-            }
+            "improvement": question.text,
+            "improvement_option": [
+                {"option": opt.id, "text": opt.text}
+                for opt in selected_options
+            ]
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+
+
 
 
 class MilestoneQuestionAnswerView(APIView):
