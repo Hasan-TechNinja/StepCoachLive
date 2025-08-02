@@ -1162,6 +1162,8 @@ class JournalEntryDetailView(APIView):
             return Response({"detail": "Journal entry not found."}, status=status.HTTP_404_NOT_FOUND)
         
 
+        
+# need to provide a daily inspiration quote using AI
 
 class DailyInspirationAPIView(APIView):
     permission_classes = [permissions.AllowAny]
