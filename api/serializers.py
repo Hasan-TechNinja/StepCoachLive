@@ -314,7 +314,7 @@ class AddictionOptionSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 
-class OnboardingDataSerializer(serializers.ModelSerializer):
+'''class OnboardingDataSerializer(serializers.ModelSerializer):
     addiction = AddictionSerializer()
     addiction_option = AddictionOptionSerializer(many=True)
 
@@ -335,6 +335,33 @@ class OnboardingDataSerializer(serializers.ModelSerializer):
     def get_milestone_option(self, obj):
 
         return [{"option": option.id, "text": option.text} for option in obj.milestone_option.all()]
+'''
+
+
+class OnboardingDataSerializer(serializers.ModelSerializer):
+    addiction_option = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    improvement_option = serializers.SerializerMethodField()
+    milestone_option = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OnboardingData
+        fields = [
+            "id",
+            "addiction_option",
+            "improvement_option",
+            "milestone_option",
+            "days_per_week",
+            "drinks_per_day",
+            "trigger_text",
+            "completed",
+            "user"
+        ]
+
+    def get_improvement_option(self, obj):
+        return [option.id for option in obj.improvement_option.all()]
+
+    def get_milestone_option(self, obj):
+        return [option.id for option in obj.milestone_option.all()]
 
 
 
