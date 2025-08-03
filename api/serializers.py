@@ -484,14 +484,10 @@ class RecoveryMilestoneSerializer(serializers.ModelSerializer):
 
 
 class MessageSerializer(serializers.ModelSerializer):
-    # 'role' is set as read-only because it's determined automatically
     role = serializers.ChoiceField(choices=[('user', 'User'), ('ai', 'AI')], read_only=True)
     
-    # 'timestamp' is automatically set by the database, so it's read-only
     timestamp = serializers.DateTimeField(read_only=True)
     
-    # For the 'conversation' field, we use a `PrimaryKeyRelatedField` with read_only set to True
-    # but without providing a queryset (because it's automatically handled by the model)
     conversation = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:

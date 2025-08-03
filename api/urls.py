@@ -37,11 +37,8 @@ urlpatterns = [
 
     path('addictions/', views.AddictionView.as_view(), name='addiction-selection'),
     path('addictions/<int:pk>', views.AddictionDetailsView.as_view(), name='addiction'),
-    # path('goals/', views.GoalSelectionView.as_view(), name='goal-selection'),
-    # path('milestones/', views.MilestoneSelectionView.as_view(), name='milestone-selection'),
     path('/drinking-habits', views.DrinkingHabitsView.as_view(), name='drinking-habits'),
     path('triggers-text/', views.TriggersTextView.as_view(), name='triggers-text'),
-    # path('day-per-week/', views.AddictionWeekView.as_view()),
     path('drinks-rate/', views.DrinksRateView.as_view()),
     path('trigger-text/', views.TriggerTextView.as_view()),
     path('improveQA/', views.ImproveQuestionAnswerView.as_view(), name='improve_qa_post'),
