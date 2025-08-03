@@ -53,7 +53,7 @@ class RegisterView(APIView):
 
                 send_mail(
                     'Your New Verification Code',
-                    f'Your new verification code is {code}',
+                    f'Hi, {email}\n\nYour new verification code is {code}',
                     'noreply@example.com',
                     [email],
                     fail_silently=False
@@ -111,7 +111,7 @@ class ResendVerificationCodeView(APIView):
 
             send_mail(
                 'Your New Verification Code',
-                f'Your new verification code is {code}',
+                f'Hi, {email}\n\nYour new verification code is {code}',
                 'noreply@example.com',
                 [email],
                 fail_silently=False
@@ -220,7 +220,7 @@ class PasswordResetRequestView(APIView):
 
             send_mail(
                 'Your Password Reset Code',
-                f'Your password reset code is {code}',
+                f'Hi, {email}\n\nYour password reset code is {code}',
                 'noreply@example.com',
                 [email],
                 fail_silently=False
