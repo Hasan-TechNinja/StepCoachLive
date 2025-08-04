@@ -868,14 +868,31 @@ class UserSubscriptionViewSet(viewsets.GenericViewSet):
 
         user = request.user
 
-        # Get or create the user's subscription record
-        user_subscription, created = UserSubscription.objects.get_or_create(user=user)
+        try:
+            # Try to fetch user's current subscription (if any)
+            user_subscription = UserSubscription.objects.get(user=user)
 
-        # Update the subscription fields
-        user_subscription.plan = plan
-        user_subscription.is_active = False
-        user_subscription.start_date = timezone.now()
-        user_subscription.save()
+            if user_subscription.is_active:
+                if user_subscription.plan.id == plan.id:
+                    return Response(
+                        {"error": "You already have an active subscription to this plan."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                else:
+                    # Upgrade/downgrade: deactivate and update to new plan
+                    user_subscription.plan = plan
+                    user_subscription.is_active = False
+                    user_subscription.start_date = timezone.now()
+                    user_subscription.save()
+
+        except UserSubscription.DoesNotExist:
+            # No subscription found — create a new one
+            user_subscription = UserSubscription.objects.create(
+                user=user,
+                plan=plan,
+                is_active=False,
+                start_date=timezone.now(),
+            )
 
         # Create Stripe Checkout Session
         try:
@@ -888,7 +905,7 @@ class UserSubscriptionViewSet(viewsets.GenericViewSet):
                         'product_data': {
                             'name': plan.name,
                         },
-                        'unit_amount': int(plan.price * 100),  # Convert to pence
+                        'unit_amount': int(plan.price * 100),
                     },
                     'quantity': 1,
                 }],
@@ -1000,12 +1017,19 @@ class SuccessView(APIView):
     def get(self, request, subscription_id):
         try:
             subscription = UserSubscription.objects.get(id=subscription_id)
-            
+
+            # Activate the subscription
+            subscription.is_active = True
+            subscription.start_date = timezone.now()
+            subscription.save()
+
             return Response({
                 "message": "Subscription activated successfully!",
                 "subscription_id": subscription.id,
                 "plan": subscription.plan.name,
                 "user": subscription.user.email,
+                "active": subscription.is_active,
+                "start_date": subscription.start_date,
             }, status=status.HTTP_200_OK)
 
         except UserSubscription.DoesNotExist:
