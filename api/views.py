@@ -868,22 +868,14 @@ class UserSubscriptionViewSet(viewsets.GenericViewSet):
 
         user = request.user
 
-        # Try to find an existing active subscription and update it, if any
-        try:
-            user_subscription = UserSubscription.objects.get(user=user, is_active=True)
-            # If an active subscription exists, update its details
-            user_subscription.plan = plan
-            user_subscription.start_date = timezone.now()  # Update to current time
-            user_subscription.is_active = False  # Mark it as inactive for now (pending payment)
-            user_subscription.save()
-        except UserSubscription.DoesNotExist:
-            # No active subscription found, so create a new one
-            user_subscription = UserSubscription.objects.create(
-                user=user,
-                plan=plan,
-                is_active=False,  # Initially inactive, waiting for successful payment
-                start_date=timezone.now(),
-            )
+        # Get or create the user's subscription record
+        user_subscription, created = UserSubscription.objects.get_or_create(user=user)
+
+        # Update the subscription fields
+        user_subscription.plan = plan
+        user_subscription.is_active = False
+        user_subscription.start_date = timezone.now()
+        user_subscription.save()
 
         # Create Stripe Checkout Session
         try:
@@ -906,13 +898,14 @@ class UserSubscriptionViewSet(viewsets.GenericViewSet):
                 metadata={
                     'user_id': user.id,
                     'plan_id': plan.id,
-                    'subscription_id': user_subscription.id  # Store subscription ID for later processing
+                    'subscription_id': user_subscription.id
                 }
             )
             return Response({'checkout_url': checkout_session.url}, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
     @action(detail=False, methods=['post'])
@@ -996,6 +989,27 @@ class StripeWebhookView(APIView):
 
         # Unexpected event type
         return JsonResponse({'message': 'Event type not supported'}, status=400)
+    
+
+
+class SuccessView(APIView):
+    """
+    Handle successful Stripe payments. Activate the subscription.
+    """
+
+    def get(self, request, subscription_id):
+        try:
+            subscription = UserSubscription.objects.get(id=subscription_id)
+            
+            return Response({
+                "message": "Subscription activated successfully!",
+                "subscription_id": subscription.id,
+                "plan": subscription.plan.name,
+                "user": subscription.user.email,
+            }, status=status.HTTP_200_OK)
+
+        except UserSubscription.DoesNotExist:
+            return Response({"error": "Subscription not found."}, status=status.HTTP_404_NOT_FOUND)
     
 
 # --------------------------------------- End of Subscription --------------------------------------------------------

@@ -55,6 +55,8 @@ urlpatterns = [
     path('suggestions/<int:pk>/<int:id>', views.SuggestionVideoView.as_view(), name='suggestion-categories'),
     path('suggestions-popular/', views.PopularSuggestionView.as_view(), name='suggestion-categories'),
     path('suggestion-recent/', views.RecentSuggestionView.as_view(), name='suggestion-categories'),
+    path('payments/success/<int:subscription_id>/', views.SuccessView.as_view(), name='suggestion-categories'),
+
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),
     path('notifications/mark-read/', views.MarkNotificationsReadView.as_view(), name='notifications-mark-read'),
     path('target-goal/', views.TargetGoalView.as_view(), name='target-goal'),
