@@ -1034,8 +1034,37 @@ class SuccessView(APIView):
 
         except UserSubscription.DoesNotExist:
             return Response({"error": "Subscription not found."}, status=status.HTTP_404_NOT_FOUND)
-    
+        
 
+
+class CancelPaymentView(APIView):
+    """
+    Handle cancellation of Stripe payments and deactivate the subscription.
+    """
+
+    def post(self, request, subscription_id):
+        try:
+            subscription = UserSubscription.objects.get(id=subscription_id)
+
+            # Deactivate the subscription
+            subscription.is_active = False
+            subscription.end_date = timezone.now()  # Set end date as now
+            subscription.save()
+
+            return Response({
+                "message": "Subscription canceled successfully.",
+                "subscription_id": subscription.id,
+                "plan": subscription.plan.name,
+                "user": subscription.user.email,
+                "active": subscription.is_active,
+                "end_date": subscription.end_date,
+            }, status=status.HTTP_200_OK)
+
+        except UserSubscription.DoesNotExist:
+            return Response({"error": "Subscription not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        
+    
 # --------------------------------------- End of Subscription --------------------------------------------------------
 
 
