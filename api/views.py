@@ -280,6 +280,11 @@ class ProfileView(APIView):
 
         if serializer.is_valid():
             serializer.save()
+            Notification.objects.create(
+                user = user,
+                title = "Profile Updated",
+                message = "Your profile has been updated successfully." 
+            )
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
