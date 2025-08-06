@@ -48,7 +48,7 @@ urlpatterns = [
     path('journals/', views.JournalEntryView.as_view(), name='journal-entries'),
     path('favorite-journals/', views.FavoriteJournalEntriesView.as_view(), name='favorite-journal-entries'),
     path('journals/<int:pk>/', views.JournalEntryDetailView.as_view(), name='journal-entry-detail'),
-    path('daily/', views.DailyInspirationAPIView.as_view(), name='daily-inspiration'),
+    path('motivational-quote/', views.MotivationalQuoteAPIView.as_view(), name='motivational-quote-api'),
     
     path('suggestions/', views.SuggestionLiarView.as_view(), name='suggestions'),
     path('suggestions/<int:pk>', views.SuggestionDetailsView.as_view(), name='suggestions'),

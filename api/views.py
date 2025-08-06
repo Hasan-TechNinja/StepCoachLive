@@ -1234,54 +1234,18 @@ class JournalEntryDetailView(APIView):
             return Response({"detail": "Journal entry not found."}, status=status.HTTP_404_NOT_FOUND)
         
 
-        
-# need to provide a daily inspiration quote using AI
 
-class DailyInspirationAPIView(APIView):
-    permission_classes = [permissions.AllowAny]
+class MotivationalQuoteAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Instantiate the AICounselor class
+        counselor = AICounselor()
 
-    def get(self, request):
-        # Simulate multiple quotes (you can customize prompt & model)
-        prompt = (
-            "Give me 4 short inspirational quotes with the author names."
-        )
-        openai.api_key = settings.OPENAI_API_KEY 
+        # Get a motivational quote from the AI class
+        quote = counselor.get_motivational_quote()
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant providing motivational quotes."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        quotes_text = response.choices[0].message['content']
-        # Optional: Use regex or parsing to format the quotes
-        # Example parsing (assuming formatted output):
-        quotes = [
-            {
-                "date": datetime.date.today(),
-                "text": "\"The only way to do great work is to love what you do.\"",
-                "author": "Steve Jobs"
-            },
-            {
-                "date": datetime.date.today(),
-                "text": "\"Believe you can and you're halfway there.\"",
-                "author": "Theodore Roosevelt"
-            },
-            {
-                "date": datetime.date.today(),
-                "text": "\"Success is not final, failure is not fatal: it is the courage to continue that counts.\"",
-                "author": "Winston Churchill"
-            },
-            {
-                "date": datetime.date.today(),
-                "text": "\"The future belongs to those who believe in the beauty of their dreams.\"",
-                "author": "Eleanor Roosevelt"
-            }
-        ]
-
-        return Response(quotes)
+        # Return the quote as a JSON response using DRF's Response class
+        return Response({'motivational_quote': quote})
+    
     
 
 class SuggestionLiarView(APIView):
