@@ -1553,9 +1553,15 @@ class ChatView(APIView):
                 role="ai",  # The AI message has the role 'ai'
                 content=ai_response,  # The content of the AI's response
             )
-
+            timestamp = datetime.datetime.now().isoformat()
             # Return the AI's response to the user
-            return Response({"response": ai_response}, status=status.HTTP_200_OK)
+            # return Response({"response": ai_response}, status=status.HTTP_200_OK)
+            return Response({
+                "role": "ai",  # Indicate that this is the user message
+                "content": ai_response,  # The user's message
+                "timestamp": timestamp,  # The timestamp when the user sent the message
+                # "conversation": conversation.id  # The ID of the current conversation
+            })
 
         # Return errors if serializer is invalid
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
