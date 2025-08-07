@@ -530,6 +530,11 @@ class TriggerTextView(APIView):
             # Set the `completed` field to True when `trigger_text` is updated
             onboarding_data.completed = True
             onboarding_data.save()
+            Notification.objects.create(
+                user=user,
+                title="Onboarding Completed",
+                message="You have successfully completed the onboarding process by providing your data.",
+            )
 
             # Serialize and return the updated `trigger_text`
             trigger_serializer = TriggerTextSerializer(onboarding_data)
@@ -1117,6 +1122,13 @@ class SubmitProgressResponses(APIView):
             response_obj = ProgressResponse(user=request.user, question=question, answer=answer)
             response_obj.save()
             saved.append({"question": question_id, "answer": answer_id})
+
+            Notification.objects.create(
+                user=request.user,
+                message=f"You answered the question: {question.text}",
+                type='progress_response',
+                is_read=False
+            )
 
         return Response({
             "saved": saved,
