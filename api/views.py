@@ -755,6 +755,13 @@ class ReportView(APIView):
         
         if serializer.is_valid():
             serializer.save()
+
+            Notification.objects.create(
+                user=request.user,
+                title="Report Submitted",
+                message="Your report has been submitted successfully.",
+            )   
+        
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1033,6 +1040,12 @@ class SuccessView(APIView):
             subscription.start_date = timezone.now()
             subscription.save()
 
+            Notification.objects.create(
+                user=subscription.user,
+                title="Subscription Activated",
+                message=f"Your subscription to {subscription.plan.name} has been activated successfully.",
+            )
+
             return Response({
                 "message": "Subscription activated successfully!",
                 "subscription_id": subscription.id,
@@ -1168,6 +1181,11 @@ class RestartTimerView(APIView):
             timer = Timer.objects.get(user=request.user)
             
             timer.restart()
+            Notification.objects.create(
+                user=request.user,
+                title="Timer Restarted",
+                message="Your timer has been restarted successfully.",
+            )
             return Response({"message": "Timer restarted", "elapsed_time": timer.get_elapsed_time()}, status=status.HTTP_200_OK)
         except Timer.DoesNotExist:
             return Response({"error": "Timer not found for this user"}, status=status.HTTP_404_NOT_FOUND)
@@ -1502,6 +1520,12 @@ class CompleteMilestoneAPIView(APIView):
                 milestone_option=milestone_option
             )
 
+            Notification.objects.create(
+                user=user,
+                title="Milestone Completed",
+                message=f"You have completed the milestone: {milestone_question.text}",
+            )
+
             return Response({"detail": "Milestone marked as completed"}, status=status.HTTP_201_CREATED)
         except MilestoneQuestion.DoesNotExist:
             return Response({"error": "Milestone question not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -1557,9 +1581,9 @@ class ChatView(APIView):
             # Return the AI's response to the user
             # return Response({"response": ai_response}, status=status.HTTP_200_OK)
             return Response({
-                "role": "ai",  # Indicate that this is the user message
-                "content": ai_response,  # The user's message
-                "timestamp": timestamp,  # The timestamp when the user sent the message
+                # "role": "ai",  # Indicate that this is the user message
+                "response": ai_response,  # The user's message
+                # "timestamp": timestamp,  # The timestamp when the user sent the message
                 # "conversation": conversation.id  # The ID of the current conversation
             })
 
