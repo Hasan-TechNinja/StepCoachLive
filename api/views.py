@@ -1542,57 +1542,77 @@ counselor = AICounselor()
 
 class ChatView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    
     def post(self, request):
         """
         Handle chat messages, process them with the AI counselor, and return the response.
-        Save the conversation and messages to the database.
+        Save the conversation and messages to the database for text-based conversations.
+        For voice-based conversations, only return the AI's response.
         """
         # Deserialize incoming message (user message only)
-        serializer = MessageSerializer(data=request.data)
-        user = request.user
-        if user.first_name:
-            user = user.first_name
-        elif user.username:
-            user = user.username    
-        else:   
+        conversation_type = request.data.get('conversation_type', 'text')  # default to 'text' if not specified
+        
+        # If the conversation type is text, proceed with saving the conversation and messages
+        if conversation_type == 'text':
+            serializer = MessageSerializer(data=request.data)
             user = request.user
+            if user.first_name:
+                user = user.first_name
+            elif user.username:
+                user = user.username    
+            else:   
+                user = request.user
 
-        if serializer.is_valid():
-            # Extract the user message
-            user_message = serializer.validated_data['content']
+            if serializer.is_valid():
+                # Extract the user message
+                user_message = serializer.validated_data['content']
 
-            # Start or retrieve the conversation for the user (we'll use 'guest' if no authenticated user)
-            user_id = request.user.id if request.user.is_authenticated else "guest"
-            conversation, created = Conversation.objects.get_or_create(user_id=user_id)
+                # Start or retrieve the conversation for the user (we'll use 'guest' if no authenticated user)
+                user_id = request.user.id if request.user.is_authenticated else "guest"
+                conversation, created = Conversation.objects.get_or_create(user_id=user_id)
 
-            # Save the user message to the database with 'role' as 'user'
-            user_message_instance = Message.objects.create(
-                conversation=conversation,
-                role=user,  # The user message has the role 'user'
-                content=user_message,  # The content of the user message
-            )
+                # Save the user message to the database with 'role' as 'user'
+                user_message_instance = Message.objects.create(
+                    conversation=conversation,
+                    role='user',  # The user message has the role 'user'
+                    content=user_message,  # The content of the user message
+                )
 
-            # Get the AI's response
+                # Get the AI's response
+                ai_response = counselor.process_message(user_message)
+
+                # Save the AI response to the database with 'role' as 'ai'
+                ai_message_instance = Message.objects.create(
+                    conversation=conversation,
+                    role='ai',  # The AI message has the role 'ai'
+                    content=ai_response,  # The content of the AI's response
+                )
+                
+                # Return the AI's response to the user
+                return Response({
+                    "response": ai_response,  # The AI's response
+                    # "conversation_id": conversation.id  # The ID of the current conversation
+                })
+
+            # Return errors if serializer is invalid
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # If the conversation type is voice, only return the AI response without saving
+        elif conversation_type == 'voice':
+            user_message = request.data.get('content', '')  # Assuming the user sends the voice content as text
+            
+            # Handle the AI response for the voice-based conversation
             ai_response = counselor.process_message(user_message)
 
-            # Save the AI response to the database with 'role' as 'ai'
-            ai_message_instance = Message.objects.create(
-                conversation=conversation,
-                role="ai",  # The AI message has the role 'ai'
-                content=ai_response,  # The content of the AI's response
-            )
-            timestamp = datetime.datetime.now().isoformat()
-            # Return the AI's response to the user
-            # return Response({"response": ai_response}, status=status.HTTP_200_OK)
+            # Return the AI response directly to the frontend (no database saving)
             return Response({
-                # "role": "ai",  # Indicate that this is the user message
-                "response": ai_response,  # The user's message
-                # "timestamp": timestamp,  # The timestamp when the user sent the message
-                # "conversation": conversation.id  # The ID of the current conversation
+                "response": ai_response,  # The AI's response
             })
 
-        # Return errors if serializer is invalid
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # If the conversation type is not recognized, return an error
+        return Response({
+            "error": "Invalid conversation type. Must be either 'text' or 'voice'."
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ConversationHistoryView(generics.ListAPIView):
