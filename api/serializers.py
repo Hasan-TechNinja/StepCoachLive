@@ -417,7 +417,7 @@ class MilestoneProgressSerializer(serializers.ModelSerializer):
 class JournalEntrySerializer(serializers.ModelSerializer):  
     class Meta:
         model = JournalEntry
-        fields = ['id', 'title', 'content', 'created_at', 'updated_at', 'favorite']
+        fields = ['id', 'title', 'content', 'color', 'created_at', 'updated_at', 'favorite']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 

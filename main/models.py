@@ -214,6 +214,7 @@ class JournalEntry(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
     content = models.TextField(max_length=20000)
+    color = models.CharField(max_length=20, default='blue')  # Default color for the journal entry
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     favorite = models.BooleanField(default=False)
