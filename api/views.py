@@ -1136,17 +1136,21 @@ class SubmitProgressResponses(APIView):
             response_obj.save()
             saved.append({"question": question_id, "answer": answer_id})
 
+        # 🔔 Create exactly one notification for this submit, if anything was saved
+        if saved:
             Notification.objects.create(
                 user=request.user,
-                message=f"You answered the question: {question.text}",
-                type='progress_response',
+                title="Progress responses submitted",
+                message=f"You submitted {len(saved)} answer(s) successfully.",
                 is_read=False
             )
 
-        return Response({
-            "saved": saved,
-            "errors": errors
-        }, status=status.HTTP_201_CREATED if saved else status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"saved": saved, "errors": errors},
+            status=status.HTTP_201_CREATED if saved else status.HTTP_400_BAD_REQUEST
+        )
+
+
     
 
 class ProgressResultView(APIView):
