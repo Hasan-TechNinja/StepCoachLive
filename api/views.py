@@ -52,10 +52,18 @@ class RegisterView(APIView):
                 EmailVerification.objects.create(user=existing_user, code=code)
 
                 send_mail(
-                    'Your New Verification Code',
-                    f'Hi, {email}\n\nYour new verification code is {code}',
-                    'noreply@example.com',
-                    [email],
+                    subject='Your New Verification Code',
+                    message=(
+                        f"Hello {email},\n\n"
+                        "Thank you for registering with us.\n"
+                        f"Your verification code is: {code}\n\n"
+                        "Please use this code to verify your account.\n"
+                        "If you did not request this, please ignore this email.\n\n"
+                        "Best regards,\n"
+                        "The 1 Step Coach Live Team"
+                    ),
+                    from_email='noreply@example.com',
+                    recipient_list=[email],
                     fail_silently=False
                 )
 
@@ -110,12 +118,20 @@ class ResendVerificationCodeView(APIView):
             EmailVerification.objects.create(user=user, code=code)
 
             send_mail(
-                'Your New Verification Code',
-                f'Hi, {email}\n\nYour new verification code is {code}',
-                'noreply@example.com',
-                [email],
-                fail_silently=False
-            )
+                    subject='Your New Verification Code',
+                    message=(
+                        f"Hello {email},\n\n"
+                        "Thank you for registering with us.\n"
+                        f"Your verification code is: {code}\n\n"
+                        "Please use this code to verify your account.\n"
+                        "If you did not request this, please ignore this email.\n\n"
+                        "Best regards,\n"
+                        "The 1 Step Coach Live Team"
+                    ),
+                    from_email='noreply@example.com',
+                    recipient_list=[email],
+                    fail_silently=False
+                )
 
             return Response({"message": "A new verification code has been sent to your email."}, status=status.HTTP_200_OK)
 
@@ -218,11 +234,27 @@ class PasswordResetRequestView(APIView):
 
             PasswordResetCode.objects.create(user=user, code=code)
 
+            if user.first_name and user.last_name:
+                name = f"{user.first_name} {user.last_name}"
+            elif user.email:
+                name = user.email
+            else:
+                name = user.username
+
             send_mail(
-                'Your Password Reset Code',
-                f'Hi, {email}\n\nYour password reset code is {code}',
-                'noreply@example.com',
-                [email],
+                subject='Password Reset Request',
+                message=(
+                    f"Hello, {name}\n"
+                    "We received a request to reset your account password.\n"
+                    f"Your password reset code is: "
+                    f"{code}\n\n"
+                    "If you did not request this, please ignore this email.\n"
+                    # "For security, this code will expire in 10 minutes.\n\n"
+                    "Best regards,\n"
+                    "The 1 Step Coach Live Team"
+                ),
+                from_email='noreply@example.com',
+                recipient_list=[email],
                 fail_silently=False
             )
 
