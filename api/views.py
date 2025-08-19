@@ -552,28 +552,36 @@ class TriggerTextView(APIView):
         except OnboardingData.DoesNotExist:
             return Response({"detail": "Onboarding data not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Handle the `trigger_text` field
+        # Handle the `trigger_text` and `created_at` fields
         trigger_text = request.data.get('trigger_text')
+        created_at = request.data.get('created_at')
 
-        if trigger_text is not None:
+        if trigger_text is not None and created_at is not None:
             # Update the `trigger_text` field
             onboarding_data.trigger_text = trigger_text
 
             # Set the `completed` field to True when `trigger_text` is updated
             onboarding_data.completed = True
+
+            # Save the `created_at` field with the provided text
+            onboarding_data.created_at = created_at  # The provided 'created_at' text
+
+            # Save the OnboardingData instance
             onboarding_data.save()
+
+            # Create a notification for the user about onboarding completion
             Notification.objects.create(
                 user=user,
                 title="Onboarding Completed",
                 message="You have successfully completed the onboarding process by providing your data.",
             )
 
-            # Serialize and return the updated `trigger_text`
+            # Serialize and return the updated `trigger_text` and `created_at`
             trigger_serializer = TriggerTextSerializer(onboarding_data)
             return Response(trigger_serializer.data, status=status.HTTP_200_OK)
         else:
-            # If `trigger_text` is not provided, return a bad request response
-            return Response({"detail": "'trigger_text' field is required"}, status=status.HTTP_400_BAD_REQUEST)
+            # If trigger_text or created_at is not provided, return a bad request response
+            return Response({"detail": "'trigger_text' and 'created_at' fields are required"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 

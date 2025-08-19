@@ -354,7 +354,8 @@ class OnboardingDataSerializer(serializers.ModelSerializer):
             "drinks_per_day",
             "trigger_text",
             "completed",
-            "user"
+            "user",
+            "created_at"
         ]
 
     def get_improvement_option(self, obj):

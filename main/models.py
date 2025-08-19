@@ -145,6 +145,7 @@ class OnboardingData(models.Model):
     milestone = models.ForeignKey(MilestoneQuestion, on_delete=models.CASCADE, blank=True, null=True)
     milestone_option = models.ManyToManyField(MilestoneOption, blank=True, null=True)
     completed = models.BooleanField(default=False)
+    created_at = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"Onboarding Data for {self.user.email if self.user else 'Unregistered User'}"
