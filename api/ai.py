@@ -4,11 +4,15 @@ import pytesseract
 from PIL import Image
 import PyPDF2
 import io
-import google.generativeai as genai
+import openai
 from dotenv import load_dotenv
 import os
 import sys
 from datetime import datetime
+from langchain_openai import ChatOpenAI
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
 
 # Load environment variables from .env file
 load_dotenv()
@@ -18,13 +22,38 @@ class AICounselor:
         """
         Initializes the AI counselor with the API key from the .env file and prepares the environment.
         """
-        api_key = os.getenv("GOOGLE_API_KEY")  # Get API key from .env
+        api_key = os.getenv("OPENAI_API_KEY")
+        os.environ["OPENAI_API_KEY"] =  api_key
         if not api_key:
-            raise ValueError("API key not found in environment variables.")
-        
-        # Configure the Gemini API client
-        genai.configure(api_key=api_key)
-        self.client = genai.GenerativeModel("gemini-2.5-flash")
+            raise ValueError("OpenAI API key not found in environment variables.")
+
+        # Set up LangChain LLM
+        self.llm = ChatOpenAI(
+            model="gpt-4o-mini", 
+            temperature=0.7,
+        )
+
+        # Set up memory for conversation
+        self.memory = ConversationBufferWindowMemory(
+            k=10,  # remembers last 10 exchanges
+            return_messages=True,
+            memory_key="chat_history"
+        )
+
+        # Prompt template for the conversation
+        self.prompt = PromptTemplate(
+            input_variables=["chat_history", "input"],
+            template=(
+                "You are a supportive friend helping with addiction recovery.\n\n"
+                "Recent conversation:\n{chat_history}\n\n"
+                "Current message: {input}\n\n"
+                "Respond in 2-3 short sentences like you're texting a close friend. "
+                "Be supportive but keep it brief. Ask one simple follow-up question."
+            )
+        )
+
+        # Set up the conversation chain
+        self.chain = LLMChain(llm=self.llm, prompt=self.prompt, memory=self.memory)
 
         self.conversation_history = []
         self.user_profile = {
@@ -52,9 +81,6 @@ class AICounselor:
         ]
 
     def create_system_prompt(self) -> str:
-        """
-        Constructs a system prompt that guides the behavior of the AI counselor.
-        """
         return f"""
         You are an AI counselor specializing in addiction recovery and mental health support. Your role combines elements of counseling psychology, motivational coaching, and wellness guidance.
 
@@ -226,9 +252,6 @@ class AICounselor:
         self.user_profile["session_count"] += 1
 
     def process_message(self, message: str, image_data: bytes = None, pdf_data: bytes = None) -> str:
-        """
-        Processes the user's message, including any attached images or PDFs, and generates a response.
-        """
         extracted_text = ""
         if image_data:
             extracted_text += "Image content: " + self.extract_text_from_image(image_data) + "\n"
@@ -241,46 +264,17 @@ class AICounselor:
 
         # Analyze the message
         analysis = self.analyze_user_message(full_message)
-
-        # Update user profile
         self.update_user_profile(analysis)
 
-        # Create a simple, direct prompt for short responses
-        conversation_context = ""
-        if len(self.conversation_history) > 0:
-            recent_history = self.conversation_history[-4:]  # Last 2 exchanges
-            for msg in recent_history:
-                role = "You" if msg["role"] == "user" else "Me"
-                conversation_context += f"{role}: {msg['content'][:100]}...\n"
-
-        simple_prompt = f"""You are a supportive friend helping with addiction recovery. 
-
-Recent conversation:
-{conversation_context}
-
-Current message: {full_message}
-
-Emotional state: {analysis.get('emotional_state', 'neutral')}
-Urgency: {analysis.get('urgency', 'medium')}
-
-Respond in 2-3 short sentences like you're texting a close friend. Be supportive but keep it brief. Ask one simple follow-up question."""
-
         try:
-            response = self.client.generate_content(simple_prompt)
-            ai_response = response.text.strip()
-
-            # Update conversation history
-            self.conversation_history.append({"role": "user", "content": message})
-            self.conversation_history.append({"role": "assistant", "content": ai_response})
-
-            # Keep history manageable (limit to last 20 messages)
-            if len(self.conversation_history) > 20:
-                self.conversation_history = self.conversation_history[-20:]
-
-            return ai_response
-
+            response = self.chain.invoke({"input": full_message})
+            # If response is a dict (as with PromptTemplate), use response["text"]
+            if isinstance(response, dict) and "text" in response:
+                return response["text"].strip()
+            return response.strip()
         except Exception as e:
             return f"I'm here for you, but having some tech issues. Can you tell me more about how you're feeling? 💙"
+
 
     def save_conversation_history(self, filename: str):
         """
