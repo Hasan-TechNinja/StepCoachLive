@@ -1412,7 +1412,7 @@ class MarkNotificationsReadView(APIView):
         return Response({"message": "All notifications marked as read."})
 
 
-class TargetGoalView(APIView):
+'''class TargetGoalView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -1433,7 +1433,53 @@ class TargetGoalView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+    '''
+
+def first_of_month(d: date) -> date:
+    return d.replace(day=1)
+
+class TargetGoalView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        # Get or default target_month
+        raw_tm = request.data.get("target_month")
+        if raw_tm:
+            # Accept "YYYY-MM-DD" or "YYYY-MM"
+            try:
+                if len(raw_tm) == 7:  # "YYYY-MM"
+                    tm = datetime.strptime(raw_tm, "%Y-%m").date()
+                else:
+                    tm = datetime.strptime(raw_tm, "%Y-%m-%d").date()
+            except ValueError:
+                return Response(
+                    {"target_month": ["Use YYYY-MM or YYYY-MM-DD."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            tm = date.today()
+
+        tm = first_of_month(tm)
+
+        # Upsert: update if exists for (user, target_month), else create
+        payload = {
+            "goal_amount": request.data.get("goal_amount"),
+        }
+        # Validate with serializer first (without committing)
+        ser = TargetGoalSerializer(data={"goal_amount": payload["goal_amount"], "target_month": tm})
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        obj, created = TargetGoal.objects.update_or_create(
+            user=user,
+            target_month=tm,
+            defaults={"goal_amount": ser.validated_data["goal_amount"]},
+        )
+
+        out = TargetGoalSerializer(obj)
+        return Response(out.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
     
 
 class MoneySavedView(APIView):

@@ -280,15 +280,32 @@ class MoneySaved(models.Model):
         return cls.objects.filter(user=user).aggregate(total=models.Sum('daily_saving_amount'))['total'] or 0
 
 
-class TargetGoal(models.Model):
+'''class TargetGoal(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     goal_amount = models.DecimalField(max_digits=10, decimal_places=2)
     target_month = models.DateField()
     start_date = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username}'s target for {self.target_month.month}/{self.target_month.year}"
+        return f"{self.user.username}'s target for {self.target_month.month}/{self.target_month.year}"'''
     
+class TargetGoal(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    goal_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    # Store any day, but we will normalize to 1st of month
+    target_month = models.DateField()
+    start_date = models.DateField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "target_month"],
+                name="unique_user_target_month",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user.username}'s target for {self.target_month.month}/{self.target_month.year}"
     
 
 class RecoveryMilestone(models.Model):

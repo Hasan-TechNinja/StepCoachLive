@@ -471,10 +471,19 @@ class MoneySavedSerializer(serializers.ModelSerializer):
         fields = ['user', 'daily_saving_amount', 'saved_date']
 
 
-class TargetGoalSerializer(serializers.ModelSerializer):
+'''class TargetGoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = TargetGoal
-        fields = ['user', 'goal_amount', 'target_month']
+        fields = ['user', 'goal_amount', 'target_month']'''
+
+class TargetGoalSerializer(serializers.ModelSerializer):
+    # user should be read-only; we’ll set it from request.user
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = TargetGoal
+        fields = ["id", "user", "goal_amount", "target_month"]
+        read_only_fields = ["id", "user"]
 
 
 
