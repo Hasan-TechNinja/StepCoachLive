@@ -547,41 +547,27 @@ class TriggerTextView(APIView):
         user = request.user
         
         try:
-            # Fetch the OnboardingData for the user
             onboarding_data = OnboardingData.objects.get(user=user)
         except OnboardingData.DoesNotExist:
             return Response({"detail": "Onboarding data not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Handle the `trigger_text` and `created_at` fields
         trigger_text = request.data.get('trigger_text')
-        created_at = request.data.get('created_at')
 
-        if trigger_text is not None and created_at is not None:
-            # Update the `trigger_text` field
+        if trigger_text is not None:
             onboarding_data.trigger_text = trigger_text
-
-            # Set the `completed` field to True when `trigger_text` is updated
             onboarding_data.completed = True
-
-            # Save the `created_at` field with the provided text
-            onboarding_data.created_at = created_at  # The provided 'created_at' text
-
-            # Save the OnboardingData instance
             onboarding_data.save()
 
-            # Create a notification for the user about onboarding completion
             Notification.objects.create(
                 user=user,
                 title="Onboarding Completed",
                 message="You have successfully completed the onboarding process by providing your data.",
             )
 
-            # Serialize and return the updated `trigger_text` and `created_at`
-            trigger_serializer = TriggerTextSerializer(onboarding_data)
-            return Response(trigger_serializer.data, status=status.HTTP_200_OK)
-        else:
-            # If trigger_text or created_at is not provided, return a bad request response
-            return Response({"detail": "'trigger_text' and 'created_at' fields are required"}, status=status.HTTP_400_BAD_REQUEST)
+            serializer = TriggerTextSerializer(onboarding_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response({"detail": "'trigger_text' field is required"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -680,27 +666,32 @@ class MilestoneQuestionAnswerView(APIView):
 
     def post(self, request):
         user = request.user
-
         milestone_options_data = request.data.get('milestone_options', [])
+        created_at_text = request.data.get('created_at')  # <-- user-provided text
 
         if not milestone_options_data:
             return Response({"detail": "Milestone options are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            milestone_options = MilestoneOption.objects.filter(id__in=milestone_options_data)
-        except MilestoneOption.DoesNotExist:
+        if not created_at_text:
+            return Response({"detail": "'created_at' is required as text."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch options; if any ID is invalid, the queryset will just ignore it
+        milestone_options = MilestoneOption.objects.filter(id__in=milestone_options_data)
+
+        if milestone_options.count() == 0:
             return Response({"detail": "One or more milestone options are invalid."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if milestone_options.count() > 1:
+            return Response({"detail": "You can select a maximum of 1 milestone option."}, status=status.HTTP_400_BAD_REQUEST)
 
         milestone_question = milestone_options.first().question
 
-        if len(milestone_options) > 1:
-            return Response({"detail": "You can select a maximum of 1 milestone options."}, status=status.HTTP_400_BAD_REQUEST)
-
-        onboarding_data, created = OnboardingData.objects.get_or_create(user=user)
+        onboarding_data, _ = OnboardingData.objects.get_or_create(user=user)
 
         onboarding_data.milestone = milestone_question
-        onboarding_data.milestone_option.set(milestone_options)
+        onboarding_data.created_at = created_at_text  # <-- save EXACT text from user
         onboarding_data.save()
+        onboarding_data.milestone_option.set(milestone_options)
 
         return Response({"detail": "Milestone data saved successfully."}, status=status.HTTP_201_CREATED)
 
