@@ -31,6 +31,10 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
+from rest_framework.response import Response
+from .services.voice_registry import voice_registry
+
+
 
 # Create your views here.
 class RegisterView(APIView):
@@ -1704,3 +1708,39 @@ class ConversationHistoryView(generics.ListAPIView):
         user_id = self.request.user.id if self.request.user.is_authenticated else "guest"
         # Return the conversations for the authenticated user or guest
         return Conversation.objects.filter(user_id=user_id)
+    
+
+
+class VoiceSessionView(APIView):
+    """
+    Start/stop a server-side live voice session (uses machine's mic/speakers via ElevenLabs).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        agent = (request.data.get("agent") or "male").lower()
+        user_key = str(request.user.id)
+
+        def on_user_transcript(t):
+            convo, _ = Conversation.objects.get_or_create(user_id=user_key)
+            Message.objects.create(conversation=convo, role="user", content=t)
+
+        def on_agent_response(r):
+            convo, _ = Conversation.objects.get_or_create(user_id=user_key)
+            Message.objects.create(conversation=convo, role="ai", content=r)
+
+        try:
+            voice_registry.start(
+                user_key=user_key,
+                agent=agent,
+                on_user_transcript=on_user_transcript,
+                on_agent_response=on_agent_response,
+            )
+            return Response({"status": "running", "agent": agent}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request):
+        user_key = str(request.user.id)
+        conversation_id = voice_registry.end(user_key)
+        return Response({"status": "ended", "conversation_id": conversation_id}, status=status.HTTP_200_OK)

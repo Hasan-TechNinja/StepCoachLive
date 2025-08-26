@@ -68,6 +68,7 @@ urlpatterns = [
 
     path('chat/', views.ChatView.as_view(), name='chat_api'),
     path('conversation-history/', views.ConversationHistoryView.as_view(), name='conversation_history'),
+    path('voice/session/', views.VoiceSessionView.as_view(), name='voice_session'),  # NEW
 ]
 
 # Static files handling (e.g., media files)
