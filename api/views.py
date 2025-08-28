@@ -845,282 +845,309 @@ class SupportContactView(APIView):
 
 # --------------------------------------- Subscription --------------------------------------------------------
    
+# views.py
+from datetime import datetime
+
+import stripe
+from django.conf import settings
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from subscription.models import SubscriptionPlan, UserSubscription
+from .serializers import SubscriptionPlanSerializer, UserSubscriptionSerializer
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
 
 class SubscriptionPlanView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        """Retrieve all subscription plans."""
         plans = SubscriptionPlan.objects.all().order_by('price')
         serializer = SubscriptionPlanSerializer(plans, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        """Create a new subscription plan (admin only)."""
         if not request.user.is_staff:
-            return Response({"detail": "You do not have permission to create subscription plans."}, status=status.HTTP_403_FORBIDDEN)
-
+            return Response(
+                {"detail": "You do not have permission to create subscription plans."},
+                status=status.HTTP_403_FORBIDDEN
+            )
         serializer = SubscriptionPlanSerializer(data=request.data)
         if serializer.is_valid():
             plan = serializer.save()
             return Response(SubscriptionPlanSerializer(plan).data, status=status.HTTP_201_CREATED)
-        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Set Stripe API Key
-stripe.api_key = settings.STRIPE_SECRET_KEY
-
 class UserSubscriptionViewSet(viewsets.GenericViewSet):
-
-    '''Subscription add demo
-    
-    ["Basic AI Chat", "Daily Check-ins", "Milestone Tracking", "Voice Responses", "Advanced Analytics", "Personalized Content", "Priority Support"]
-'''
     queryset = UserSubscription.objects.all()
     serializer_class = UserSubscriptionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        """Filter to get the subscription for the authenticated user."""
         return self.queryset.filter(user=self.request.user)
 
     @action(detail=False, methods=['get'])
     def current(self, request):
-        """Retrieve the current subscription for the authenticated user."""
-        try:
-            user_subscription = self.get_queryset().get()  # Should be OneToOne, so get() works
-            serializer = self.get_serializer(user_subscription)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except UserSubscription.DoesNotExist:
-            return Response({"message": "No active subscription found for this user."},
-                            status=status.HTTP_404_NOT_FOUND)
+        sub = self.get_queryset().first()
+        if not sub:
+            return Response({"message": "No subscription found for this user."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(self.get_serializer(sub).data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'])
     def current_active(self, request):
-        """Check if the user has an active subscription."""
-        user_subscription = self.get_queryset().filter(is_active=True).first()
-        if user_subscription:
-            serializer = self.get_serializer(user_subscription)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({"message": "No active subscription found for this user."},
-                        status=status.HTTP_200_OK)
+        sub = self.get_queryset().first()
+        if sub and sub.is_currently_active:
+            return Response(self.get_serializer(sub).data, status=status.HTTP_200_OK)
+        return Response({"message": "No active subscription found for this user."}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'])
     def subscribe(self, request):
-        """Create a Stripe checkout session for the user to subscribe to a plan."""
+        """
+        Start (or switch) to a plan via Stripe Checkout subscription.
+        Free plans are activated locally; paid plans create a Checkout Session (mode='subscription').
+        """
         plan_id = request.data.get('plan_id')
         if not plan_id:
-            return Response({"error": "Plan ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "plan_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            plan = SubscriptionPlan.objects.get(id=plan_id)
-        except SubscriptionPlan.DoesNotExist:
-            return Response({"error": "Subscription plan not found."}, status=status.HTTP_404_NOT_FOUND)
+        plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+
+        if not plan.is_free() and not plan.stripe_price_id:
+            return Response({"error": "This plan is missing stripe_price_id."}, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user
 
-        try:
-            # Try to fetch user's current subscription (if any)
-            user_subscription = UserSubscription.objects.get(user=user)
+        # Ensure one local record exists
+        sub, _ = UserSubscription.objects.get_or_create(
+            user=user,
+            defaults={'plan': plan, 'is_active': False, 'start_date': timezone.now()}
+        )
+        # If switching plans, keep the local row and update fields
+        sub.plan = plan
+        sub.is_active = plan.is_free()  # free activates immediately
+        sub.save()
 
-            if user_subscription.is_active:
-                if user_subscription.plan.id == plan.id:
-                    return Response(
-                        {"error": "You already have an active subscription to this plan."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                else:
-                    # Upgrade/downgrade: deactivate and update to new plan
-                    user_subscription.plan = plan
-                    user_subscription.is_active = False
-                    user_subscription.start_date = timezone.now()
-                    user_subscription.save()
+        if plan.is_free():
+            # No Stripe flow for free plans
+            return Response(self.get_serializer(sub).data, status=status.HTTP_200_OK)
 
-        except UserSubscription.DoesNotExist:
-            # No subscription found — create a new one
-            user_subscription = UserSubscription.objects.create(
-                user=user,
-                plan=plan,
-                is_active=False,
-                start_date=timezone.now(),
-            )
+        # Ensure a Stripe Customer exists
+        if not sub.stripe_customer_id:
+            customer = stripe.Customer.create(email=user.email, metadata={'user_id': user.id})
+            sub.stripe_customer_id = customer.id
+            sub.save()
+        else:
+            customer = stripe.Customer.retrieve(sub.stripe_customer_id)
 
-        # Create Stripe Checkout Session
+        # Create subscription checkout
         try:
             checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
-                customer_email=user.email,
-                line_items=[{
-                    'price_data': {
-                        'currency': 'gbp',
-                        'product_data': {
-                            'name': plan.name,
-                        },
-                        'unit_amount': int(plan.price * 100),
-                    },
-                    'quantity': 1,
-                }],
-                mode='payment',
-                success_url=request.build_absolute_uri(f'/payments/success/{user_subscription.id}/'),
+                mode='subscription',
+                customer=customer.id,
+                customer_update={'address': 'auto', 'name': 'auto'},
+                line_items=[{'price': plan.stripe_price_id, 'quantity': 1}],
+                success_url=request.build_absolute_uri(f'/payments/success/'),
                 cancel_url=request.build_absolute_uri('/payments/cancel/'),
-                metadata={
-                    'user_id': user.id,
-                    'plan_id': plan.id,
-                    'subscription_id': user_subscription.id
-                }
+                metadata={'user_id': user.id, 'subscription_id': sub.id, 'plan_id': plan.id},
+                allow_promotion_codes=True,
             )
+
+
             return Response({'checkout_url': checkout_session.url}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def cancel(self, request):
+        """
+        Cancel at period end (Stripe-native), mirror locally.
+        If it's a free/legacy plan, just set inactive immediately.
+        """
+        sub = self.get_queryset().first()
+        if not sub:
+            return Response({"message": "No subscription found to cancel."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not sub.stripe_subscription_id:
+            # Free or legacy duration plan
+            sub.is_active = False
+            sub.status = 'canceled'
+            sub.end_date = timezone.now()
+            sub.save()
+            return Response(self.get_serializer(sub).data, status=status.HTTP_200_OK)
+
+        try:
+            stripe.Subscription.modify(sub.stripe_subscription_id, cancel_at_period_end=True)
+            sub.cancel_at_period_end = True
+            # Still active until end of period
+            sub.status = 'active' if sub.status == 'active' else sub.status
+            sub.save()
+            return Response(self.get_serializer(sub).data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def renew(self, request):
+        """
+        Renew a subscription if it's eligible.
+        """
+        sub = self.get_queryset().first()
+        
+        # Check if the subscription has a valid Stripe subscription ID
+        if not sub or not sub.stripe_subscription_id:
+            return Response({"message": "No paid subscription to renew."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            # If the subscription is canceled, try to reactivate it
+            if sub.status == 'canceled':
+                stripe_sub = stripe.Subscription.retrieve(sub.stripe_subscription_id)
+                
+                if stripe_sub.cancel_at_period_end:
+                    # Reactivate the subscription by modifying cancel_at_period_end
+                    stripe_sub = stripe.Subscription.modify(sub.stripe_subscription_id, cancel_at_period_end=False)
+
+                # Update subscription state based on Stripe
+                sub.status = stripe_sub.status
+                sub.is_active = True
+                sub.current_period_end = timezone.make_aware(
+                    timezone.datetime.fromtimestamp(stripe_sub.current_period_end)
+                )
+                sub.save()
+
+                return Response(self.get_serializer(sub).data, status=status.HTTP_200_OK)
+
+            # If the subscription is already active, no need to renew
+            if sub.is_active:
+                return Response({"message": "Subscription is already active."}, status=status.HTTP_200_OK)
+
+            # If subscription cannot be renewed, create a new subscription
+            new_subscription = stripe.Subscription.create(
+                customer=sub.stripe_customer_id,
+                items=[{'price': sub.plan.stripe_price_id}],
+                metadata={'subscription_id': sub.id},
+            )
+
+            sub.stripe_subscription_id = new_subscription.id
+            sub.status = new_subscription.status
+            sub.current_period_end = timezone.make_aware(
+                timezone.datetime.fromtimestamp(new_subscription.current_period_end)
+            )
+            sub.is_active = True
+            sub.save()
+
+            return Response(self.get_serializer(sub).data, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
-    @action(detail=False, methods=['post'])
-    def cancel(self, request):
-        """Cancel the active subscription for the authenticated user."""
-        try:
-            user_subscription = self.get_queryset().get(is_active=True)
-            user_subscription.is_active = False
-            user_subscription.save()
-            serializer = self.get_serializer(user_subscription)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except UserSubscription.DoesNotExist:
-            return Response({"message": "No active subscription found to cancel."},
-                             status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=False, methods=['post'])
-    def renew(self, request):
-        """Renew the user's subscription."""
-        try:
-            user_subscription = self.get_queryset().get(is_active=True)
-            # Renew logic: Extend the end_date by the plan's duration
-            if user_subscription.plan.duration_days:
-                user_subscription.end_date += timedelta(days=user_subscription.plan.duration_days)
-                user_subscription.last_renewed = timezone.now()
-                user_subscription.save()
-                serializer = self.get_serializer(user_subscription)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-
-            return Response({"message": "This plan does not support renewal."},
-                             status=status.HTTP_400_BAD_REQUEST)
-        except UserSubscription.DoesNotExist:
-            return Response({"message": "No active subscription found to renew."},
-                             status=status.HTTP_404_NOT_FOUND)
-        
-stripe.api_key = settings.STRIPE_SECRET_KEY
-
+@method_decorator(csrf_exempt, name='dispatch')
 class StripeWebhookView(APIView):
-
-    @csrf_exempt
     def post(self, request, *args, **kwargs):
-        # Retrieve the request's body as a string
         payload = request.body.decode('utf-8')
         sig_header = request.headers.get('Stripe-Signature')
 
-        event = None
-
         try:
-            # Verify the webhook signature
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
-            )
-        except ValueError as e:
-            # Invalid payload
+            event = stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
+        except ValueError:
             return JsonResponse({'message': 'Invalid payload'}, status=400)
-        except stripe.error.SignatureVerificationError as e:
-            # Invalid signature
+        except stripe.error.SignatureVerificationError:
             return JsonResponse({'message': 'Invalid signature'}, status=400)
 
-        # Handle the event
+        # 1) Checkout session completed (user completed checkout)
         if event['type'] == 'checkout.session.completed':
             session = event['data']['object']
+            metadata = session.get('metadata', {}) or {}
+            sub_id = metadata.get('subscription_id', False)   
+            # print("---------------------id -----------------", sub_id)
+            
+            if sub_id:
+                user_sub = get_object_or_404(UserSubscription, id=sub_id)
+                stripe_sub = stripe.Subscription.retrieve(session['subscription'])
+                
+                # Update the local subscription with the Stripe subscription ID and status
+                user_sub.stripe_subscription_id = stripe_sub.id
+                user_sub.status = stripe_sub.status
+                current_period_end = stripe_sub.get('current_period_end', None)
+                if current_period_end:
+                    user_sub.period_end_time = timezone.datetime.fromtimestamp(current_period_end)
+                else:
+                    user_sub.period_end_time = None 
+                user_sub.is_active = user_sub.status in ('trialing', 'active', 'past_due')
+                user_sub.is_active= True
+                print(user_sub.is_active)
+                user_sub.save()
 
-            # Get the subscription ID and user ID from the metadata
-            subscription_id = session['metadata']['subscription_id']
-            user_id = session['metadata']['user_id']
+            return JsonResponse({'status': 'ok'}, status=200)
 
-            # Fetch the subscription object
-            user_subscription = get_object_or_404(UserSubscription, id=subscription_id, user_id=user_id)
+        return JsonResponse({'message': 'Event type not supported'}, status=200)
 
-            # Update subscription status to active
-            user_subscription.is_active = True
-            user_subscription.save()
-
-            # Optionally: You can set the end date, last renewed, etc.
-            # user_subscription.end_date = calculate_end_date_based_on_plan(user_subscription.plan)
-            # user_subscription.last_renewed = timezone.now()
-            # user_subscription.save()
-
-            # Respond with a success message
-            return JsonResponse({'status': 'success'}, status=200)
-
-        # Unexpected event type
-        return JsonResponse({'message': 'Event type not supported'}, status=400)
-    
 
 
 class SuccessView(APIView):
-    """
-    Handle successful Stripe payments. Activate the subscription.
-    """
+    permission_classes = [AllowAny]  # <-- user may not be logged in after checkout
 
     def get(self, request, subscription_id):
+        session_id = request.GET.get('session_id')  # Fetch session_id from query parameters
+        if not session_id:
+            return Response({"error": "Missing session_id."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            subscription = UserSubscription.objects.get(id=subscription_id)
+            # This retrieves the actual Stripe checkout session using the session_id from the query string
+            session = stripe.checkout.Session.retrieve(session_id)
+        except Exception as e:
+            return Response({"error": f"Unable to retrieve checkout session: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Activate the subscription
-            subscription.is_active = True
-            subscription.start_date = timezone.now()
-            subscription.save()
+        # Validate that this success belongs to the same local subscription
+        meta = session.get('metadata') or {}
+        meta_sub_id = meta.get('subscription_id')
+        if not meta_sub_id or str(meta_sub_id) != str(subscription_id):
+            return Response({"error": "Subscription mismatch."}, status=status.HTTP_400_BAD_REQUEST)
 
-            Notification.objects.create(
-                user=subscription.user,
-                title="Subscription Activated",
-                message=f"Your subscription to {subscription.plan.name} has been activated successfully.",
-            )
+        sub = get_object_or_404(UserSubscription, id=subscription_id)
+        return Response({
+            "message": "Payment success received.",
+            "subscription_id": sub.id,
+            "plan": sub.plan.name,
+            "user_email": sub.user.email,
+            "status": sub.status,
+            "cancel_at_period_end": sub.cancel_at_period_end,
+            "current_period_end": sub.current_period_end,
+            "is_active": sub.is_active,
+        }, status=status.HTTP_200_OK)
 
-            return Response({
-                "message": "Subscription activated successfully!",
-                "subscription_id": subscription.id,
-                "plan": subscription.plan.name,
-                "user": subscription.user.email,
-                "active": subscription.is_active,
-                "start_date": subscription.start_date,
-            }, status=status.HTTP_200_OK)
 
-        except UserSubscription.DoesNotExist:
-            return Response({"error": "Subscription not found."}, status=status.HTTP_404_NOT_FOUND)
-        
+
 
 
 class CancelPaymentView(APIView):
     """
-    Handle cancellation of Stripe payments and deactivate the subscription.
+    Only for aborting a local non-Stripe flow. For Stripe use /cancel which sets cancel_at_period_end.
     """
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, subscription_id):
-        try:
-            subscription = UserSubscription.objects.get(id=subscription_id)
+        sub = get_object_or_404(UserSubscription, id=subscription_id, user=request.user)
+        if sub.stripe_subscription_id:
+            return Response({"message": "Use /user-subscriptions/cancel to cancel at period end."}, status=400)
+        sub.is_active = False
+        sub.status = 'canceled'
+        sub.end_date = timezone.now()
+        sub.save()
+        return Response({"message": "Subscription canceled locally."}, status=200)
 
-            # Deactivate the subscription
-            subscription.is_active = False
-            subscription.end_date = timezone.now()  # Set end date as now
-            subscription.save()
-
-            return Response({
-                "message": "Subscription canceled successfully.",
-                "subscription_id": subscription.id,
-                "plan": subscription.plan.name,
-                "user": subscription.user.email,
-                "active": subscription.is_active,
-                "end_date": subscription.end_date,
-            }, status=status.HTTP_200_OK)
-
-        except UserSubscription.DoesNotExist:
-            return Response({"error": "Subscription not found."}, status=status.HTTP_404_NOT_FOUND)
-        
         
     
 # --------------------------------------- End of Subscription --------------------------------------------------------

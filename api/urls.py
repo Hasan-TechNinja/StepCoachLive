@@ -23,9 +23,11 @@ urlpatterns = [
     path('terms-conditions/', views.TermsConditionsView.as_view(), name='terms_conditions'),
     path('support-contact/', views.SupportContactView.as_view(), name='support_contact'),
 
-    path('subscription-plans/', views.SubscriptionPlanView.as_view(), name='report'),
+    path('subscription-plans/', views.SubscriptionPlanView.as_view(), name='subscription-plans'),
     path('webhooks/stripe/', views.StripeWebhookView.as_view(), name='stripe-webhook'),
     path('', include(router.urls)),
+    path('payments/success/<int:subscription_id>/', views.SuccessView.as_view(), name='payment-success'),  # Updated
+    path('payments/cancel/', views.CancelPaymentView.as_view(), name='payment-cancel'),
 
     path('progress-test/', views.UserProgressTest.as_view(), name='progress-questions'),
     path('progress/submit/', views.SubmitProgressResponses.as_view(), name='submit-progress-responses'),
